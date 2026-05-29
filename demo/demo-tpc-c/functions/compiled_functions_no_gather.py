@@ -475,7 +475,7 @@ async def update_stock(ctx: StatefulFunction, index: int, o_id: int, i_id: int,
     s_dist_xx = dist[d_id - 1]
     ol_number = index + 1
     ctx.put(__state__)
-    ctx.call_remote_async(operator_name = 'orderline', function_name = 'insert', key = str(w_id) + ":" + str(d_id) + ":" + str(o_id) + ":" + str(ol_number), params = (w_id, d_id, o_id, i_id, ol_number, i_qty, o_entry_d, i_w_id, ol_amount, s_dist_xx, [{'sink': True}]))
+    ctx.call_remote_async(operator_name = 'orderline', function_name = 'insert', key = str(w_id) + ":" + str(d_id) + ":" + str(o_id) + ":" + str(ol_number), params = (w_id, d_id, o_id, i_id, ol_number, i_qty, o_entry_d, i_w_id, s_dist_xx, ol_amount, [{'sink': True}]))
     ctx.put(__state__)
     return send_reply(ctx, reply_to, {
         'i_name': i_name,

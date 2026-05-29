@@ -213,7 +213,7 @@ max_rate = {
 
 
 min_val = 100
-max_val = 7000
+max_val = 4000
 step = 200
 
 input_throughput = [
@@ -223,7 +223,7 @@ input_throughput = [
 
 # Comment these two lines out to run the full sweep above.
 n_workers = [10]
-input_throughput = [(500, 1)]
+input_throughput = [(350, 1)]
 # ============================================================================
 
 

@@ -192,27 +192,28 @@ async def get_district(ctx: StatefulFunction, w_id: int, d_id: int, c_id: int,
     __state__ = ctx.get() or {}
     if not bool(__state__):
         raise DistrictDoesNotExist(f"District with key: {ctx.key} does not exist")
-    # O_ID via txn t_id instead of RMW on D_NEXT_O_ID — kills the per-district
-    # WW conflict that was capping Aria throughput. Uniqueness within district is
-    # preserved (t_id is globally unique); density is intentionally dropped.
-    d_next_o_id = ctx.t_id
     data = {
         'D_ID': __state__['D_ID'], 'D_W_ID': __state__['D_W_ID'], 'D_NAME': __state__['D_NAME'],
-        'D_TAX': __state__['D_TAX'], 'D_YTD': __state__['D_YTD'], 'D_NEXT_O_ID': d_next_o_id,
+        'D_TAX': __state__['D_TAX'], 'D_YTD': __state__['D_YTD'], 'D_NEXT_O_ID': __state__['D_NEXT_O_ID'],
         'D_STREET_1': __state__['D_STREET_1'], 'D_STREET_2': __state__['D_STREET_2'],
         'D_CITY': __state__['D_CITY'], 'D_STATE': __state__['D_STATE'], 'D_ZIP': __state__['D_ZIP'],
     }
-    # No ctx.put: this path is read-only on district state now.
+    d_next_o_id = __state__['D_NEXT_O_ID']
+    ctx.put(__state__)
     ctx.call_remote_async(operator_name = 'order', function_name = 'insert', key = str(w_id) + ":" + str(d_id) + ":" + str(d_next_o_id), params = (w_id, d_id, d_next_o_id, c_id, o_entry_d, None, len(i_ids), all_local, [{'sink': True}]))
+    ctx.put(__state__)
     ctx.call_remote_async(operator_name = 'neworder', function_name = 'insert', key = str(w_id) + ":" + str(d_id) + ":" + str(d_next_o_id), params = (w_id, d_id, d_next_o_id, [{'sink': True}]))
     _g_iter = list(range(len(i_ids)))
     _gather_id = init_gather_barrier(ctx, len(_g_iter), {'data': data}, reply_to)
     for (_g_tag, i) in enumerate(_g_iter):
         _g_reply = [{'op_name': 'district', 'fun': 'get_district_step_2', 'id': ctx.key, 'context': {'_g_barrier': _gather_id, '_g_tag': _g_tag}}]
+        ctx.put(__state__)
         ctx.call_remote_async(operator_name = 'item', function_name = 'get_item', key = i_ids[i], params = (i, w_id, d_id, o_entry_d, i_qtys[i], i_w_ids[i], d_next_o_id, _g_reply))
+    ctx.put(__state__)
 
 @district_operator.register
 async def get_district_step_2(ctx: StatefulFunction, func_context, _gather_partial = None, reply_to: list = None):
+    __state__ = ctx.get() or {}
     barrier_id = func_context['_g_barrier']
     _g_tag = func_context['_g_tag']
     (is_complete, _g_results, saved, parent_reply_to) = update_gather_barrier(ctx, barrier_id, _g_tag, _gather_partial)
@@ -221,8 +222,8 @@ async def get_district_step_2(ctx: StatefulFunction, func_context, _gather_parti
     (data,) = (saved.get('data'),)
     reply_to = parent_reply_to
     item_replies = _g_results
-    # No D_NEXT_O_ID increment; t_id is the unique id and is not stored.
-    # No ctx.put on __state__ — district state is unchanged in this txn.
+    __state__['D_NEXT_O_ID'] += 1
+    ctx.put(__state__)
     return send_reply(ctx, reply_to, {'district': data, 'items': item_replies})
 
 
@@ -410,7 +411,7 @@ async def insert(ctx: StatefulFunction, S_I_ID: int, S_W_ID: int, S_QUANTITY: in
 async def get_stock(ctx: StatefulFunction, reply_to: list = None) -> dict:
     __state__ = ctx.get() or {}
     data = {
-        'S_I_ID': __state__['S_I_ID'], 'S_W_ID': __state__['S_W_ID'], 'S_QUANTITY': __state__['S_QUANTITY'],
+        'S_I_ID': __state__['S_I_ID'].I_ID, 'S_W_ID': __state__['S_W_ID'], 'S_QUANTITY': __state__['S_QUANTITY'],
         'S_DIST_01': __state__['S_DIST_01'], 'S_DIST_02': __state__['S_DIST_02'], 'S_DIST_03': __state__['S_DIST_03'],
         'S_DIST_04': __state__['S_DIST_04'], 'S_DIST_05': __state__['S_DIST_05'], 'S_DIST_06': __state__['S_DIST_06'],
         'S_DIST_07': __state__['S_DIST_07'], 'S_DIST_08': __state__['S_DIST_08'], 'S_DIST_09': __state__['S_DIST_09'],
@@ -462,7 +463,8 @@ async def update_stock(ctx: StatefulFunction, index: int, o_id: int, i_id: int,
     s_dist_xx = dist[d_id - 1]
     ol_number = index + 1
     ctx.put(__state__)
-    ctx.call_remote_async(operator_name = 'orderline', function_name = 'insert', key = str(w_id) + ":" + str(d_id) + ":" + str(o_id) + ":" + str(ol_number), params = (w_id, d_id, o_id, i_id, ol_number, i_qty, o_entry_d, i_w_id, ol_amount, s_dist_xx, [{'sink': True}]))
+    ctx.call_remote_async(operator_name = 'orderline', function_name = 'insert', key = str(w_id) + ":" + str(d_id) + ":" + str(o_id) + ":" + str(ol_number), params = (w_id, d_id, o_id, i_id, ol_number, i_qty, o_entry_d, i_w_id, s_dist_xx, ol_amount, [{'sink': True}]))
+    ctx.put(__state__)
     return send_reply(ctx, reply_to, {
         'i_name': i_name,
         'i_price': i_price,
@@ -648,20 +650,15 @@ async def new_order_step_2(ctx: StatefulFunction, func_context, _gather_partial 
     warehouse_data, district_bundle, customer_data = _g_results
     district_data = district_bundle['district']
     item_replies = district_bundle['items']
-    _comp_result_1 = []
-    for item_reply in item_replies:
-        _comp_result_1.append(item_reply['ol_amount'])
-    total = sum(_comp_result_1)
+    total = sum(item_reply['ol_amount'] for item_reply in item_replies)
     w_tax: float = warehouse_data['W_TAX']
     d_tax: float = district_data['D_TAX']
     total = total * (1 - customer_data['C_DISCOUNT']) * (1 + w_tax + d_tax)
     o_id = district_data['D_NEXT_O_ID']
-    _comp_result_2 = []
-    for r in item_replies:
-        _comp_result_2.append(f"{r['i_name']},{r['s_quantity']},{r['brand_generic']},{r['i_price']:.2f},{r['ol_amount']:.2f}")
-    attr_3 = ";"
-    item_str = attr_3.join(
-        _comp_result_2
+    attr_1 = ";"
+    item_str = attr_1.join(
+        f"{r['i_name']},{r['s_quantity']},{r['brand_generic']},{r['i_price']:.2f},{r['ol_amount']:.2f}"
+        for r in item_replies
     )
     return send_reply(ctx, reply_to, (
         f"NO|C_ID={customer_data['C_ID']},C_LAST={customer_data['C_LAST']},"
