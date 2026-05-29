@@ -221,9 +221,9 @@ input_throughput = [
     for v in range(min_val, max_val + 1, step)
 ]
 
-# Comment these two lines out to run the full sweep above.
-n_workers = [10]
-input_throughput = [(350, 1)]
+# # Comment these two lines out to run the full sweep above.
+# n_workers = [10]
+# input_throughput = [(350, 1)]
 # ============================================================================
 
 
