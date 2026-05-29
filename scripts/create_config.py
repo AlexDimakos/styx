@@ -34,7 +34,7 @@ file_names = [f for f in os.listdir(results_path) if os.path.isfile(os.path.join
 ycsbt_results = [file_name for file_name in file_names if file_name.startswith("ycsbt")]
 d_movie_results = [file_name for file_name in file_names if file_name.startswith("d_movie")]
 d_hotel_results = [file_name for file_name in file_names if file_name.startswith("d_hotel")]
-tpcc_results = [file_name for file_name in file_names if file_name.startswith("tpcc_W")]
+tpcc_results = [file_name for file_name in file_names if file_name.startswith("tpcc_")]
 
 lines = []
 
@@ -203,11 +203,10 @@ if "dmr" in scenarios:
 
 
 # tpcc
-n_workers = [1, 10, 100]
+n_workers = [10, 100]
 
 # per-worker caps
 max_rate = {
-    1: 1000,
     10: 4000,
     100: 10000,
 }
@@ -222,14 +221,21 @@ input_throughput = [
     for v in range(min_val, max_val + 1, step)
 ]
 
+# Comment these two lines out to run the full sweep above.
+n_workers = [10]
+input_throughput = [(500, 1)]
+# ============================================================================
+
 
 # define the three configurations
 configs = [
     # (enable_compression, use_composite_keys, suffix)
     (True,  True,  "ALL"),
-    (False, True,  "NO_COMP"),
-    (True,  False, "NO_CK"),
+    # (False, True,  "NO_COMP"),
+    # (True,  False, "NO_CK"),
 ]
+
+tpcc_system = os.environ.get("TPCC_SYSTEM", "handwritten")
 
 if "tpcc" in scenarios:
     for input_rate, n_threads in input_throughput:
@@ -239,7 +245,7 @@ if "tpcc" in scenarios:
                 continue
             for enable_compression, use_composite_keys, tag in configs:
                 # file name now encodes the variant tag
-                file_name = f"tpcc_W{n_w}_{input_rate * n_threads}_{tag}.json"
+                file_name = f"tpcc_{tpcc_system}_W{n_w}_{input_rate * n_threads}_{tag}.json"
 
                 if file_name not in tpcc_results:
                     lines.append((

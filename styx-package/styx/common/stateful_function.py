@@ -173,6 +173,16 @@ class StatefulFunction(Function):
         """The key for this function instance."""
         return self.__key
 
+    @property
+    def t_id(self) -> int:
+        """Globally unique transaction id assigned by the sequencer.
+
+        Stable across every function invocation belonging to the same transaction
+        and across reschedules/retries, so it can be used as a conflict-free unique
+        identifier in place of an RMW counter that would hot-spot in Aria.
+        """
+        return self.__t_id
+
     async def run(self, *args) -> None:  # noqa: ANN002
         """Executes the actual function logic. Meant to be overridden by subclasses.
 
@@ -223,6 +233,64 @@ class StatefulFunction(Function):
         else:
             self.__state.put(
                 self.key,
+                value,
+                self.__t_id,
+                self.__operator_name,
+                self.__partition,
+            )
+
+
+    def _func_context_key(self) -> tuple[str, K]:
+        """Returns a derived key used to store function context separately from entity state."""
+        return ("__func_ctx__", self.__key)
+
+    def get_func_context(self) -> V:
+        """Retrieves the function context for the current key.
+
+        Works like get() but stores data in a separate namespace,
+        so it never conflicts with the entity state.
+
+        Returns:
+            object: The current function context value associated with the key.
+        """
+        fc_key = self._func_context_key()
+        if self.__fallback_enabled:
+            value = self.__state.get_immediate(
+                fc_key,
+                self.__t_id,
+                self.__operator_name,
+                self.__partition,
+            )
+        else:
+            value = self.__state.get(
+                fc_key,
+                self.__t_id,
+                self.__operator_name,
+                self.__partition,
+            )
+        return value
+
+    def put_func_context(self, value: V) -> None:
+        """Stores a function context value for the current key.
+
+        Works like put() but stores data in a separate namespace,
+        so it never conflicts with the entity state.
+
+        Args:
+            value: The value to store as function context.
+        """
+        fc_key = self._func_context_key()
+        if self.__fallback_enabled:
+            self.__state.put_immediate(
+                fc_key,
+                value,
+                self.__t_id,
+                self.__operator_name,
+                self.__partition,
+            )
+        else:
+            self.__state.put(
+                fc_key,
                 value,
                 self.__t_id,
                 self.__operator_name,

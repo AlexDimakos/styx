@@ -117,7 +117,15 @@ elif [[ $workload_name == "tpcc" ]]; then
         "$GENERATOR_BIN" "$n_keys" "$DATA_DIR"
     fi
 
-    python demo/demo-tpc-c/pure_kafka_demo.py \
+    TPCC_SYSTEM=${TPCC_SYSTEM:-handwritten}
+    if [[ "$TPCC_SYSTEM" == obol* ]]; then
+        TPCC_DEMO="demo/demo-tpc-c/pure_kafka_demo_compiled.py"
+    else
+        TPCC_DEMO="demo/demo-tpc-c/pure_kafka_demo.py"
+    fi
+    echo "tpcc_system: $TPCC_SYSTEM  (demo: $TPCC_DEMO, compiled_variant: ${TPCC_COMPILED_VARIANT:-gather})"
+
+    python "$TPCC_DEMO" \
         "$saving_dir" "$client_threads" "$n_part" \
         "$input_rate" "$total_time" "$warmup_seconds" \
         "$n_keys" "$enable_compression" "$use_composite_keys" "$kill_at"

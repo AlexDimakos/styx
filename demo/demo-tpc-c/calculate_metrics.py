@@ -1,5 +1,6 @@
 import json
 import math
+import os
 import sys
 
 import numpy as np
@@ -21,8 +22,9 @@ def main(
         (True, False): "NO_CK",
     }
 
-    exp_name = f"tpcc_W{n_w}_{input_rate * client_threads}_{ablation_configs[(enable_compression,
-                                                                              use_composite_keys)]}"
+    tpcc_system = os.environ.get("TPCC_SYSTEM", "handwritten")
+    tag = ablation_configs[(enable_compression, use_composite_keys)]
+    exp_name = f"tpcc_{tpcc_system}_W{n_w}_{input_rate * client_threads}_{tag}"
 
     origin_input_msgs = pd.read_csv(f"{save_dir}/client_requests.csv",
                                     dtype={"request_id": bytes,
