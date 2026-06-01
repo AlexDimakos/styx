@@ -57,7 +57,7 @@ INGRESS_TYPE = os.getenv("INGRESS_TYPE", None)
 KAFKA_URL: str = os.environ["KAFKA_URL"]
 HEARTBEAT_INTERVAL: int = int(os.getenv("HEARTBEAT_INTERVAL", "500"))  # 500ms
 SNAPSHOT_BUCKET_NAME: str = os.getenv("SNAPSHOT_BUCKET_NAME", "styx-snapshots")
-MIGRATION_THREADS = int(os.getenv("MIGRATION_THREADS", "4"))
+MIGRATION_THREADS = int(os.getenv("MIGRATION_THREADS", "1"))
 
 # Backpressure-related sizes
 PROTOCOL_QUEUE_SIZE: int = int(os.getenv("PROTOCOL_QUEUE_SIZE", "10000"))

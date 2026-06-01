@@ -34,8 +34,10 @@ class AsyncSnapshottingProcess:
         self.snapshotting_socket.setblocking(False)
 
         self.aio_task_scheduler = AIOTaskScheduler()
+        import os
+        snapshot_threads = int(os.getenv("SNAPSHOT_THREADS", "1"))
         self.pool: concurrent.futures.ProcessPoolExecutor = concurrent.futures.ProcessPoolExecutor(
-            4,
+            snapshot_threads,
             multiprocessing.get_context("spawn"),
             initializer=warm_s3_client,
         )
@@ -43,7 +45,7 @@ class AsyncSnapshottingProcess:
         # doesn't pay the ~1.9s boto3 cold-start cost.  We don't block here
         # because the snapshotting TCP server must start listening before the
         # main worker process tries to connect.
-        self._warmup_futures = [self.pool.submit(int, i) for i in range(4)]
+        self._warmup_futures = [self.pool.submit(int, i) for i in range(snapshot_threads)]
         self.delta_maps: dict[OperatorPartition, KVPairs] = {}
         self.worker_id = worker_id
         self.async_snapshots = AsyncSnapshotsS3(self.worker_id)
