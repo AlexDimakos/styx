@@ -7,40 +7,39 @@ services:
     image: dev/styx-coordinator:latest
     ports:
       - "8886:8888"
-      - "8002:8000"
+      - "8000:8000"
     environment:
       - KAFKA_URL=kafka1:19092
-      - KAFKA_REPLICATION_FACTOR=1
       - HEARTBEAT_LIMIT=5000
       - HEARTBEAT_CHECK_INTERVAL=500
       - S3_ENDPOINT=http://rustfs:9000
       - S3_ACCESS_KEY=rustfsadmin
       - S3_SECRET_KEY=rustfsadmin
-    depends_on:
-      - prometheus
-      - grafana
+#    depends_on:
+#      - prometheus
+#      - grafana
 
-  prometheus:
-    image: prom/prometheus:v3.2.1
-    ports:
-      - "9091:9090"
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-
-  grafana:
-    image: grafana/grafana:11.5.2-ubuntu
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin  # Optional: Grant Admin rights to anonymous users
-      - GF_AUTH_DISABLE_LOGIN_FORM=true   # Optional: Hide the login form
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning  # Auto-config
-      - ./grafana/dashboards:/etc/grafana/dashboards      # Load dashboards
+#  prometheus:
+#    image: prom/prometheus:v3.2.1
+#    ports:
+#      - "9090:9090"
+#    volumes:
+#      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+#    command:
+#      - "--config.file=/etc/prometheus/prometheus.yml"
+#
+#  grafana:
+#    image: grafana/grafana:11.5.2-ubuntu
+#    ports:
+#      - "3001:3000"
+#    environment:
+#      - GF_AUTH_ANONYMOUS_ENABLED=true
+#      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin  # Optional: Grant Admin rights to anonymous users
+#      - GF_AUTH_DISABLE_LOGIN_FORM=true   # Optional: Hide the login form
+#    volumes:
+#      - grafana_data:/var/lib/grafana
+#      - ./grafana/provisioning:/etc/grafana/provisioning  # Auto-config
+#      - ./grafana/dashboards:/etc/grafana/dashboards      # Load dashboards
 
   worker:
     build:
@@ -58,5 +57,5 @@ services:
     depends_on:
       - coordinator
 
-volumes:
-  grafana_data:
+#volumes:
+#  grafana_data:
