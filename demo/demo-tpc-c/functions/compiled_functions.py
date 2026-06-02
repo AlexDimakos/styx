@@ -192,19 +192,13 @@ async def get_district(ctx: StatefulFunction, w_id: int, d_id: int, c_id: int,
     __state__ = ctx.get() or {}
     if not bool(__state__):
         raise DistrictDoesNotExist(f"District with key: {ctx.key} does not exist")
-    data = {
-        'D_ID': __state__['D_ID'], 'D_W_ID': __state__['D_W_ID'], 'D_NAME': __state__['D_NAME'],
-        'D_TAX': __state__['D_TAX'], 'D_YTD': __state__['D_YTD'], 'D_NEXT_O_ID': __state__['D_NEXT_O_ID'],
-        'D_STREET_1': __state__['D_STREET_1'], 'D_STREET_2': __state__['D_STREET_2'],
-        'D_CITY': __state__['D_CITY'], 'D_STATE': __state__['D_STATE'], 'D_ZIP': __state__['D_ZIP'],
-    }
     d_next_o_id = __state__['D_NEXT_O_ID']
     ctx.put(__state__)
     ctx.call_remote_async(operator_name = 'order', function_name = 'insert', key = str(w_id) + ":" + str(d_id) + ":" + str(d_next_o_id), params = (w_id, d_id, d_next_o_id, c_id, o_entry_d, None, len(i_ids), all_local, [{'sink': True}]))
     ctx.put(__state__)
     ctx.call_remote_async(operator_name = 'neworder', function_name = 'insert', key = str(w_id) + ":" + str(d_id) + ":" + str(d_next_o_id), params = (w_id, d_id, d_next_o_id, [{'sink': True}]))
     _g_iter = list(range(len(i_ids)))
-    _gather_id = init_gather_barrier(ctx, len(_g_iter), {'data': data}, reply_to)
+    _gather_id = init_gather_barrier(ctx, len(_g_iter), {}, reply_to)
     for (_g_tag, i) in enumerate(_g_iter):
         _g_reply = [{'op_name': 'district', 'fun': 'get_district_step_2', 'id': ctx.key, 'context': {'_g_barrier': _gather_id, '_g_tag': _g_tag}}]
         ctx.put(__state__)
@@ -219,10 +213,15 @@ async def get_district_step_2(ctx: StatefulFunction, func_context, _gather_parti
     (is_complete, _g_results, saved, parent_reply_to) = update_gather_barrier(ctx, barrier_id, _g_tag, _gather_partial)
     if not is_complete:
         return
-    (data,) = (saved.get('data'),)
     reply_to = parent_reply_to
     item_replies = _g_results
     __state__['D_NEXT_O_ID'] += 1
+    data = {
+        'D_ID': __state__['D_ID'], 'D_W_ID': __state__['D_W_ID'], 'D_NAME': __state__['D_NAME'],
+        'D_TAX': __state__['D_TAX'], 'D_YTD': __state__['D_YTD'], 'D_NEXT_O_ID': __state__['D_NEXT_O_ID'],
+        'D_STREET_1': __state__['D_STREET_1'], 'D_STREET_2': __state__['D_STREET_2'],
+        'D_CITY': __state__['D_CITY'], 'D_STATE': __state__['D_STATE'], 'D_ZIP': __state__['D_ZIP'],
+    }
     ctx.put(__state__)
     return send_reply(ctx, reply_to, {'district': data, 'items': item_replies})
 

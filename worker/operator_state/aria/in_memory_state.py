@@ -232,6 +232,19 @@ class InMemoryOperatorState(BaseAriaState):
         self.data[operator_partition].update(kv_pairs)
         self.delta_map[operator_partition].update(kv_pairs)
 
+    def put(self, key: K, value: V, t_id: int, operator_name: str, partition: int) -> None:
+        # Record the write only if it changes the value
+        operator_partition: OperatorPartition = (operator_name, partition)
+        tid_writes = self.write_sets[operator_partition].get(t_id)
+        if tid_writes is not None and key in tid_writes:
+            if tid_writes[key] == value:
+                return
+        else:
+            committed = self.data[operator_partition]
+            if key in committed and committed[key] == value:
+                return
+        super().put(key, value, t_id, operator_name, partition)
+
     def get(self, key: K, t_id: int, operator_name: str, partition: int) -> V:
         return _cy_state_get(
             self.data,

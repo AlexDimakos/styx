@@ -192,12 +192,6 @@ async def get_district(ctx: StatefulFunction, w_id: int, d_id: int, c_id: int,
     __state__ = ctx.get() or {}
     if not bool(__state__):
         raise DistrictDoesNotExist(f"District with key: {ctx.key} does not exist")
-    data = {
-        'D_ID': __state__['D_ID'], 'D_W_ID': __state__['D_W_ID'], 'D_NAME': __state__['D_NAME'],
-        'D_TAX': __state__['D_TAX'], 'D_YTD': __state__['D_YTD'], 'D_NEXT_O_ID': __state__['D_NEXT_O_ID'],
-        'D_STREET_1': __state__['D_STREET_1'], 'D_STREET_2': __state__['D_STREET_2'],
-        'D_CITY': __state__['D_CITY'], 'D_STATE': __state__['D_STATE'], 'D_ZIP': __state__['D_ZIP'],
-    }
     d_next_o_id = __state__['D_NEXT_O_ID']
     ctx.put(__state__)
     ctx.call_remote_async(operator_name = 'order', function_name = 'insert', key = str(w_id) + ":" + str(d_id) + ":" + str(d_next_o_id), params = (w_id, d_id, d_next_o_id, c_id, o_entry_d, None, len(i_ids), all_local, [{'sink': True}]))
@@ -206,37 +200,43 @@ async def get_district(ctx: StatefulFunction, w_id: int, d_id: int, c_id: int,
     _comp_result_1 = []
     __loop_index_1 = 0
     ctx.put(__state__)
-    ctx.call_remote_async(operator_name = 'district', function_name = 'get_district_step_2', key = ctx.key, params = ({'__loop_index_1': __loop_index_1, '_comp_result_1': _comp_result_1, 'd_id': d_id, 'd_next_o_id': d_next_o_id, 'data': data, 'i_ids': i_ids, 'i_qtys': i_qtys, 'i_w_ids': i_w_ids, 'o_entry_d': o_entry_d, 'w_id': w_id}, None, reply_to))
+    ctx.call_remote_async(operator_name = 'district', function_name = 'get_district_step_2', key = ctx.key, params = ({'__loop_index_1': __loop_index_1, '_comp_result_1': _comp_result_1, 'd_id': d_id, 'd_next_o_id': d_next_o_id, 'i_ids': i_ids, 'i_qtys': i_qtys, 'i_w_ids': i_w_ids, 'o_entry_d': o_entry_d, 'w_id': w_id}, None, reply_to))
 
 @district_operator.register
 async def get_district_step_2(ctx: StatefulFunction, func_context, placeholder_return = None, reply_to: list = None):
     params = resolve_context(ctx, func_context)
-    (__loop_index_1, _comp_result_1, d_id, d_next_o_id, data, i_ids, i_qtys, i_w_ids, o_entry_d, w_id) = (params.get('__loop_index_1'), params.get('_comp_result_1'), params.get('d_id'), params.get('d_next_o_id'), params.get('data'), params.get('i_ids'), params.get('i_qtys'), params.get('i_w_ids'), params.get('o_entry_d'), params.get('w_id'))
+    (__loop_index_1, _comp_result_1, d_id, d_next_o_id, i_ids, i_qtys, i_w_ids, o_entry_d, w_id) = (params.get('__loop_index_1'), params.get('_comp_result_1'), params.get('d_id'), params.get('d_next_o_id'), params.get('i_ids'), params.get('i_qtys'), params.get('i_w_ids'), params.get('o_entry_d'), params.get('w_id'))
     if __loop_index_1 >= len(i_ids):
-        ctx.call_remote_async(operator_name = 'district', function_name = 'get_district_step_3', key = ctx.key, params = ({'__loop_index_1': __loop_index_1, '_comp_result_1': _comp_result_1, 'd_id': d_id, 'd_next_o_id': d_next_o_id, 'data': data, 'i_ids': i_ids, 'i_qtys': i_qtys, 'i_w_ids': i_w_ids, 'o_entry_d': o_entry_d, 'w_id': w_id}, None, reply_to))
+        ctx.call_remote_async(operator_name = 'district', function_name = 'get_district_step_3', key = ctx.key, params = ({'__loop_index_1': __loop_index_1, '_comp_result_1': _comp_result_1, 'd_id': d_id, 'd_next_o_id': d_next_o_id, 'i_ids': i_ids, 'i_qtys': i_qtys, 'i_w_ids': i_w_ids, 'o_entry_d': o_entry_d, 'w_id': w_id}, None, reply_to))
     else:
         i = __loop_index_1
         __loop_index_1 += 1
         attr_1 = i_ids[i]
-        reply_to = push_continuation(ctx, reply_to, 'district', 'get_district_step_4', ctx.key, {'__loop_index_1': __loop_index_1, '_comp_result_1': _comp_result_1, 'd_id': d_id, 'd_next_o_id': d_next_o_id, 'data': data, 'i_ids': i_ids, 'i_qtys': i_qtys, 'i_w_ids': i_w_ids, 'o_entry_d': o_entry_d, 'w_id': w_id})
+        reply_to = push_continuation(ctx, reply_to, 'district', 'get_district_step_4', ctx.key, {'__loop_index_1': __loop_index_1, '_comp_result_1': _comp_result_1, 'd_id': d_id, 'd_next_o_id': d_next_o_id, 'i_ids': i_ids, 'i_qtys': i_qtys, 'i_w_ids': i_w_ids, 'o_entry_d': o_entry_d, 'w_id': w_id})
         ctx.call_remote_async(operator_name = 'item', function_name = 'get_item', key = attr_1, params = (i, w_id, d_id, o_entry_d, i_qtys[i], i_w_ids[i], d_next_o_id, reply_to))
 
 @district_operator.register
 async def get_district_step_3(ctx: StatefulFunction, func_context, placeholder_return = None, reply_to: list = None):
     __state__ = ctx.get() or {}
     params = resolve_context(ctx, func_context)
-    (__loop_index_1, _comp_result_1, d_id, d_next_o_id, data, i_ids, i_qtys, i_w_ids, o_entry_d, w_id) = (params.get('__loop_index_1'), params.get('_comp_result_1'), params.get('d_id'), params.get('d_next_o_id'), params.get('data'), params.get('i_ids'), params.get('i_qtys'), params.get('i_w_ids'), params.get('o_entry_d'), params.get('w_id'))
+    (__loop_index_1, _comp_result_1, d_id, d_next_o_id, i_ids, i_qtys, i_w_ids, o_entry_d, w_id) = (params.get('__loop_index_1'), params.get('_comp_result_1'), params.get('d_id'), params.get('d_next_o_id'), params.get('i_ids'), params.get('i_qtys'), params.get('i_w_ids'), params.get('o_entry_d'), params.get('w_id'))
     item_replies = _comp_result_1
     __state__['D_NEXT_O_ID'] += 1
+    data = {
+        'D_ID': __state__['D_ID'], 'D_W_ID': __state__['D_W_ID'], 'D_NAME': __state__['D_NAME'],
+        'D_TAX': __state__['D_TAX'], 'D_YTD': __state__['D_YTD'], 'D_NEXT_O_ID': __state__['D_NEXT_O_ID'],
+        'D_STREET_1': __state__['D_STREET_1'], 'D_STREET_2': __state__['D_STREET_2'],
+        'D_CITY': __state__['D_CITY'], 'D_STATE': __state__['D_STATE'], 'D_ZIP': __state__['D_ZIP'],
+    }
     ctx.put(__state__)
     return send_reply(ctx, reply_to, {'district': data, 'items': item_replies})
 
 @district_operator.register
 async def get_district_step_4(ctx: StatefulFunction, func_context, attr_2 = None, reply_to: list = None):
     params = resolve_context(ctx, func_context)
-    (__loop_index_1, _comp_result_1, d_id, d_next_o_id, data, i_ids, i_qtys, i_w_ids, o_entry_d, w_id) = (params.get('__loop_index_1'), params.get('_comp_result_1'), params.get('d_id'), params.get('d_next_o_id'), params.get('data'), params.get('i_ids'), params.get('i_qtys'), params.get('i_w_ids'), params.get('o_entry_d'), params.get('w_id'))
+    (__loop_index_1, _comp_result_1, d_id, d_next_o_id, i_ids, i_qtys, i_w_ids, o_entry_d, w_id) = (params.get('__loop_index_1'), params.get('_comp_result_1'), params.get('d_id'), params.get('d_next_o_id'), params.get('i_ids'), params.get('i_qtys'), params.get('i_w_ids'), params.get('o_entry_d'), params.get('w_id'))
     _comp_result_1.append(attr_2)
-    ctx.call_remote_async(operator_name = 'district', function_name = 'get_district_step_2', key = ctx.key, params = ({'__loop_index_1': __loop_index_1, '_comp_result_1': _comp_result_1, 'd_id': d_id, 'd_next_o_id': d_next_o_id, 'data': data, 'i_ids': i_ids, 'i_qtys': i_qtys, 'i_w_ids': i_w_ids, 'o_entry_d': o_entry_d, 'w_id': w_id}, None, reply_to))
+    ctx.call_remote_async(operator_name = 'district', function_name = 'get_district_step_2', key = ctx.key, params = ({'__loop_index_1': __loop_index_1, '_comp_result_1': _comp_result_1, 'd_id': d_id, 'd_next_o_id': d_next_o_id, 'i_ids': i_ids, 'i_qtys': i_qtys, 'i_w_ids': i_w_ids, 'o_entry_d': o_entry_d, 'w_id': w_id}, None, reply_to))
 
 
 @district_operator.register
