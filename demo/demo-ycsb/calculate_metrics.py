@@ -8,6 +8,7 @@ import pandas as pd
 # A run with sensible defaults: python calculate_metrics.py results 0 10 10 100 0.0 1
 
 def main(
+        system,
         n_keys,
         n_partitions,
         input_rate,
@@ -19,10 +20,14 @@ def main(
 ):
     print("Calculating metrics...")
 
+    # The result filename encodes the system (handwritten | obol) and the
+    # key-space size (contention regime) so the systems and regimes do not
+    # overwrite each other and reruns can skip completed points.
+    tput = input_rate * client_threads
     if zipf_const > 0:
-        exp_name = f"ycsbt_zipf_{zipf_const}_{input_rate * client_threads}"
+        exp_name = f"ycsbt_{system}_K{n_keys}_zipf{zipf_const}_{tput}"
     else:
-        exp_name = f"ycsbt_uni_{input_rate * client_threads}"
+        exp_name = f"ycsbt_{system}_K{n_keys}_{tput}"
 
     starting_money = 1_000_000
 
@@ -162,7 +167,9 @@ def main(
 
 
 if __name__ == "__main__":
+    import os
     main(
+        os.getenv("YCSB_SYSTEM", "handwritten"),
         int(sys.argv[3]),
         int(sys.argv[4]),
         int(sys.argv[5]),

@@ -18,7 +18,6 @@ from styx.common.local_state_backends import LocalStateBackend
 from styx.common.operator import Operator
 from styx.common.stateflow_graph import StateflowGraph
 from tqdm import tqdm
-from ycsb import ycsb_operator
 from zipfian_generator import ZipfGenerator
 
 threads = int(sys.argv[1])
@@ -43,6 +42,15 @@ SAVE_DIR: str = sys.argv[7]
 warmup_seconds: int = int(sys.argv[8])
 run_with_validation = sys.argv[9].lower() == "true"
 kill_at: int = int(sys.argv[10])
+
+# Which YCSB implementation to benchmark, selected via env var (mirrors TPCC_SYSTEM):
+#   handwritten -> hand-written Styx operator (ycsb.py, raw-int state)
+#   obol        -> Obol-compiled operator     (ycsb_compiled.py, {'key','value'} dict state)
+YCSB_SYSTEM: str = os.getenv("YCSB_SYSTEM", "handwritten")
+if YCSB_SYSTEM == "obol":
+    from ycsb_compiled import ycsb_operator
+else:
+    from ycsb import ycsb_operator
 ####################################################################################################################
 g = StateflowGraph("ycsb-benchmark",
                    operator_state_backend=LocalStateBackend.DICT,
@@ -62,7 +70,12 @@ def ycsb_init(styx: SyncStyxClient, operator: Operator, keys: list[int]):
     partitions: dict[int, dict] = {p: {} for p in range(N_PARTITIONS)}
     for i in tqdm(keys):
         partition: int = styx.get_operator_partition(i, operator)
-        partitions[partition][i] = STARTING_MONEY
+        # The compiled operator keeps its state as a {'key','value'} dict; the
+        # hand-written operator keeps the raw integer value.
+        if YCSB_SYSTEM == "obol":
+            partitions[partition][i] = {"key": i, "value": STARTING_MONEY}
+        else:
+            partitions[partition][i] = STARTING_MONEY
 
     for partition, partition_data in partitions.items():
         styx.init_data(operator, partition, partition_data)
@@ -200,6 +213,7 @@ if __name__ == "__main__":
 
     print()
     calculate_metrics.main(
+        YCSB_SYSTEM,
         N_ENTITIES,
         N_PARTITIONS,
         messages_per_second,

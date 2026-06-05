@@ -262,5 +262,33 @@ if "tpcc" in scenarios:
                         use_composite_keys,
                     ))
 
+# ============================================================================
+# Obol YCSB saturation sweep (hand-written Styx vs Obol-compiled)
+#
+# Mirrors the TPC-C sweep: a 100..4000 txn/s offered-rate sweep, single client
+# thread, run under two key-space sizes that place the `transfer` workload in
+# opposite contention regimes:
+#   - small key space (1_000 keys)   -> high contention (hot keys, like 10 wh)
+#   - large key space (100_000 keys) -> low contention  (like 100 warehouses)
+# The system token (handwritten | obol) comes from $YCSB_SYSTEM so the two
+# systems write distinct result files and reruns skip already-completed points.
+# To push past single-thread saturation, raise the n_threads field below.
+# ============================================================================
+ycsb_system = os.environ.get("YCSB_SYSTEM", "handwritten")
+
+ycsb_keyspaces = [1_000, 100_000]          # high-contention, low-contention
+ycsb_zipf = 0.0
+ycsb_min, ycsb_max, ycsb_step = 100, 4000, 200
+ycsb_rates = [(v, 1) for v in range(ycsb_min, ycsb_max + 1, ycsb_step)]
+
+if "ycsb" in scenarios:
+    for input_rate, n_threads in ycsb_rates:
+        for ks in ycsb_keyspaces:
+            file_name = f"ycsbt_{ycsb_system}_K{ks}_{input_rate * n_threads}.json"
+            if file_name not in ycsbt_results:
+                lines.append(("ycsbt", input_rate, ks, partitions, ycsb_zipf,
+                              n_threads, experiment_time, warmup_time,
+                              1_000, True, True, True))
+
 df = pd.DataFrame(lines)
 df.to_csv(os.path.join(script_path, "styx_experiments_config.csv"), index=False, header=False)
