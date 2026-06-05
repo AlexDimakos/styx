@@ -207,12 +207,12 @@ async def get_district(ctx: StatefulFunction, w_id: int, d_id: int, c_id: int,
 
 @district_operator.register
 async def get_district_step_2(ctx: StatefulFunction, func_context, _gather_partial = None, reply_to: list = None):
-    __state__ = ctx.get() or {}
     barrier_id = func_context['_g_barrier']
     _g_tag = func_context['_g_tag']
     (is_complete, _g_results, saved, parent_reply_to) = update_gather_barrier(ctx, barrier_id, _g_tag, _gather_partial)
     if not is_complete:
         return
+    __state__ = ctx.get() or {}
     reply_to = parent_reply_to
     item_replies = _g_results
     __state__['D_NEXT_O_ID'] += 1
@@ -741,12 +741,12 @@ async def payment(ctx: StatefulFunction, params: dict, reply_to: list = None) ->
 
 @paymenttxn_operator.register
 async def payment_step_2(ctx: StatefulFunction, func_context, _gather_partial = None, reply_to: list = None):
-    __state__ = ctx.get() or {}
     barrier_id = func_context['_g_barrier']
     _g_tag = func_context['_g_tag']
     (is_complete, _g_results, saved, parent_reply_to) = update_gather_barrier(ctx, barrier_id, _g_tag, _gather_partial)
     if not is_complete:
         return
+    __state__ = ctx.get() or {}
     reply_to = parent_reply_to
     customer_data, district_data, warehouse_data = _g_results
     h_data = f"{warehouse_data['W_NAME']}    {district_data['D_NAME']}"
