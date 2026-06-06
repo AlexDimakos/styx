@@ -301,9 +301,16 @@ ycsb_rates_by_keyspace = {
     # High contention: flat until ~30k, only 40k/50k saturate -> two points in
     # the 30k-40k gap to define the knee.
     1_000:   _ycsb_base + [(3300, 10), (3700, 10)],              # 33k, 37k
-    # Low contention: not saturated by 50k -> push higher at 10 threads (no
-    # extra client cores needed) by raising the per-thread rate.
-    100_000: _ycsb_base + [(6000, 10), (7500, 10), (9000, 10)],  # 60k, 75k, 90k
+    # Low contention: still climbing at 90k (only ~150ms p50), so push much
+    # higher to find the knee. Per thread tops out ~10k txn/s, so we scale
+    # threads (load-gen has 96 cores). The original Styx YCSB sweep saturated
+    # this regime by ~240k, so we sweep up to 320k to bracket it.
+    100_000: _ycsb_base + [
+        (6000, 10), (7500, 10), (9000, 10),          # 60k, 75k, 90k (already run)
+        (10000, 10), (10000, 13), (10000, 16),       # 100k, 130k, 160k
+        (10000, 20), (10000, 24), (10000, 28),       # 200k, 240k, 280k
+        (10000, 32),                                 # 320k
+    ],
 }
 
 if "ycsb" in scenarios:
