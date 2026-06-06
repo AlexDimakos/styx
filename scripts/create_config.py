@@ -280,12 +280,12 @@ ycsb_keyspaces = [1_000, 100_000]          # high-contention, low-contention
 ycsb_zipf = 0.0
 
 # The transfer txn is far lighter than TPC-C New-Order (a single remote call,
-# no fan-out/aggregation), so it sustains an order of magnitude more load. We
-# sweep ~100 .. ~50k txn/s, roughly log-spaced, using multiple client threads
-# above ~3k since one thread cannot offer that rate. Each pair is
-# (per-thread input_rate, n_threads); offered throughput is their product.
-# Trim the high end or add threads to bracket your cluster's saturation point.
-ycsb_rates = [
+# no fan-out/aggregation), so it sustains an order of magnitude more load. Each
+# pair is (per-thread input_rate, n_threads); offered throughput is the product.
+# Above ~3k a single client thread cannot offer the rate, so we add threads.
+#
+# Shared base sweep both key-spaces already ran (~100 .. 50k txn/s, log-spaced):
+_ycsb_base = [
     (100, 1), (200, 1), (300, 1), (500, 1), (700, 1),
     (1000, 1), (1500, 1), (2000, 1), (3000, 1),     # single-thread, up to 3k
     (2000, 2), (2500, 2), (3000, 2), (4000, 2), (5000, 2),   # 4k .. 10k
@@ -294,9 +294,21 @@ ycsb_rates = [
     (5000, 8), (5000, 10),                           # 40k, 50k
 ]
 
+# Per-key-space sweeps. Each regime saturates at a different load, so they get
+# different extra points. Re-running only adds points whose result file is
+# missing, so extending these lists and re-running is cheap.
+ycsb_rates_by_keyspace = {
+    # High contention: flat until ~30k, only 40k/50k saturate -> two points in
+    # the 30k-40k gap to define the knee.
+    1_000:   _ycsb_base + [(3300, 10), (3700, 10)],              # 33k, 37k
+    # Low contention: not saturated by 50k -> push higher at 10 threads (no
+    # extra client cores needed) by raising the per-thread rate.
+    100_000: _ycsb_base + [(6000, 10), (7500, 10), (9000, 10)],  # 60k, 75k, 90k
+}
+
 if "ycsb" in scenarios:
-    for input_rate, n_threads in ycsb_rates:
-        for ks in ycsb_keyspaces:
+    for ks in ycsb_keyspaces:
+        for input_rate, n_threads in ycsb_rates_by_keyspace[ks]:
             file_name = f"ycsbt_{ycsb_system}_K{ks}_{input_rate * n_threads}.json"
             if file_name not in ycsbt_results:
                 lines.append(("ycsbt", input_rate, ks, partitions, ycsb_zipf,
