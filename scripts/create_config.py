@@ -278,8 +278,21 @@ ycsb_system = os.environ.get("YCSB_SYSTEM", "handwritten")
 
 ycsb_keyspaces = [1_000, 100_000]          # high-contention, low-contention
 ycsb_zipf = 0.0
-ycsb_min, ycsb_max, ycsb_step = 100, 4000, 200
-ycsb_rates = [(v, 1) for v in range(ycsb_min, ycsb_max + 1, ycsb_step)]
+
+# The transfer txn is far lighter than TPC-C New-Order (a single remote call,
+# no fan-out/aggregation), so it sustains an order of magnitude more load. We
+# sweep ~100 .. ~50k txn/s, roughly log-spaced, using multiple client threads
+# above ~3k since one thread cannot offer that rate. Each pair is
+# (per-thread input_rate, n_threads); offered throughput is their product.
+# Trim the high end or add threads to bracket your cluster's saturation point.
+ycsb_rates = [
+    (100, 1), (200, 1), (300, 1), (500, 1), (700, 1),
+    (1000, 1), (1500, 1), (2000, 1), (3000, 1),     # single-thread, up to 3k
+    (2000, 2), (2500, 2), (3000, 2), (4000, 2), (5000, 2),   # 4k .. 10k
+    (4000, 3), (5000, 3),                            # 12k, 15k
+    (5000, 4), (5000, 5), (5000, 6),                 # 20k, 25k, 30k
+    (5000, 8), (5000, 10),                           # 40k, 50k
+]
 
 if "ycsb" in scenarios:
     for input_rate, n_threads in ycsb_rates:
