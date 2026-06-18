@@ -237,7 +237,6 @@ class StatefulFunction(Function):
                 self.__partition,
             )
 
-
     def _func_context_key(self) -> tuple[str, K]:
         return ("__func_ctx__", self.__key)
 
