@@ -72,7 +72,7 @@ port.exclude_lines = [
 
 [tool.ruff]
 src = ["src"]
-exclude = []
+exclude = ["examples"]  # compiler inputs / generated output: don't lint or format
 line-length = 120  # how long you want lines to be
 
 [tool.ruff.format]
@@ -116,10 +116,19 @@ exclude = [
 [tool.ruff.lint.per-file-ignores]
 # Tests can ignore a few extra rules
 "tests/**.py" = [
-    "ANN201", # Missing return type annotation for public function
-    "D103",   # Missing docstring
-    "S101",   # Use of assert is detected
-    "INP001", # Missing __init__.py file
+    "ANN201",  # Missing return type annotation for public function
+    "D103",    # Missing docstring
+    "S101",    # Use of assert is detected
+    "INP001",  # Missing __init__.py file
+    "PT009",   # unittest-style assertions are idiomatic in a TestCase
+    "PLW0603", # module-global Styx client set up in setUpModule
+    "EM101",   # exception message string literals are fine in tests
+    "EM102",   # f-string exception messages are fine in tests
+]
+# The demo app uses web-framework handler signatures.
+"working-example/**.py" = [
+    "ARG001",  # Sanic passes request/app/loop to handlers even when unused
+    "INP001",  # standalone scripts, not an importable package
 ]
 
 [tool.yamlfix]

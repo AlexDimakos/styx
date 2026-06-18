@@ -27,7 +27,7 @@ NotEnoughBalance = _compiled.NotEnoughBalance
 app = Sanic("obol-app")
 
 STYX_HOST = os.environ.get("STYX_HOST", "localhost")
-STYX_PORT = int(os.environ.get("STYX_PORT", 8888))
+STYX_PORT = int(os.environ.get("STYX_PORT", "8888"))
 KAFKA_URL = os.environ.get("KAFKA_URL", "localhost:9092")
 
 styx_client = AsyncStyxClient(STYX_HOST, STYX_PORT, KAFKA_URL)
@@ -49,6 +49,7 @@ async def handle_options(request):
                 "Access-Control-Max-Age": "86400",
             },
         )
+    return None
 
 
 @app.on_response
