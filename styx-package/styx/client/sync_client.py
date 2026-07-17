@@ -321,7 +321,7 @@ class SyncStyxClient(BaseStyxClient):
         )
         s = socket.socket()
         s.connect((self._styx_coordinator_adr, self._styx_coordinator_port))
-        s.send(msg)
+        s.sendall(msg)
         s.close()
 
     def update_dataflow(
@@ -339,7 +339,7 @@ class SyncStyxClient(BaseStyxClient):
         )
         s = socket.socket()
         s.connect((self._styx_coordinator_adr, self._styx_coordinator_port))
-        s.send(msg)
+        s.sendall(msg)
         s.close()
 
     def notify_init_data_complete(self) -> None:
@@ -350,5 +350,5 @@ class SyncStyxClient(BaseStyxClient):
         )
         s = socket.socket()
         s.connect((self._styx_coordinator_adr, self._styx_coordinator_port))
-        s.send(msg)
+        s.sendall(msg)
         s.close()

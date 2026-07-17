@@ -39,9 +39,11 @@ sns.set_theme(
 )
 
 # Maps the system token used in result filenames -> display name + style.
+# Colors/markers match the TPC-C figures so each system keeps one identity
+# across every figure (CVD-validated categorical palette).
 SYS = {
-    "obol":        dict(label="Obol",              color="#5a2a82", marker="o"),
-    "handwritten": dict(label="Hand-written Styx", color="#c1492f", marker="s"),
+    "obol":        dict(label="Obol",              color="#008300", marker="s"),
+    "handwritten": dict(label="Hand-written Styx", color="#2a78d6", marker="o"),
 }
 # Order in which series are drawn / legended (bottom curve first).
 DRAW_ORDER = ["handwritten", "obol"]

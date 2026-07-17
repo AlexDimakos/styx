@@ -10,6 +10,8 @@ import libcst as cst
 from libcst import matchers as m
 from libcst_dfa.data_flow import ImmutableSet
 
+from obol.config import liveness_enabled
+
 
 class LivenessHelper:
     def __init__(self, live_vars: Mapping | None):
@@ -24,7 +26,9 @@ class LivenessHelper:
         return str(v).split(".")[-1] if "." in str(v) else str(v)
 
     def _live_set(self, node: cst.CSTNode | None, kind: str) -> ImmutableSet | None:
-        if not self.live_vars or node is None:
+        # With liveness disabled (ablation), report "no data" everywhere so every
+        # call site falls back to capturing the full defined-variable set.
+        if not liveness_enabled() or not self.live_vars or node is None:
             return None
         data = self.live_vars.get(node)
         if data is None:

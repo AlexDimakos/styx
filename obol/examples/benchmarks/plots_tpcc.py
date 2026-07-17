@@ -39,10 +39,12 @@ sns.set_theme(
 )
 
 # Maps the system token used in result filenames -> display name + style.
+# Colors/markers match plots_tpcc_ablation.py so each system keeps one
+# identity across every figure (CVD-validated categorical palette).
 SYS = {
-    "obol_gather":   dict(label="Obol (gather)",     color="#5a2a82", marker="o"),
-    "obol_nogather": dict(label="Obol (no gather)",  color="#b58fd6", marker="^"),
-    "handwritten":   dict(label="Hand-written Styx", color="#c1492f", marker="s"),
+    "obol_gather":   dict(label="Obol (gather)",     color="#008300", marker="s"),
+    "obol_nogather": dict(label="Obol (no gather)",  color="#e87ba4", marker="^"),
+    "handwritten":   dict(label="Hand-written Styx", color="#2a78d6", marker="o"),
 }
 # Order in which series are drawn / legended (bottom curve first).
 DRAW_ORDER = ["handwritten", "obol_nogather", "obol_gather"]

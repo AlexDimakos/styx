@@ -10,6 +10,7 @@ In the post-split body we use another helper to restore live variables from the 
 
 import libcst as cst
 
+from obol.config import tail_call_enabled
 from obol.cst_helpers import assign_stmt
 from obol.splitting.context import LoopContext, SplitContext
 
@@ -24,7 +25,8 @@ def handle_remote_call(ctx: SplitContext, body: list, i: int, loop_context: Loop
     # Tail-call optimization: if the only follow-up is `return <target_var>`,
     # skip the continuation — the reply already flows back via reply_to.
     if (
-        len(post_split) == 1
+        tail_call_enabled()
+        and len(post_split) == 1
         and isinstance(post_split[0], cst.SimpleStatementLine)
         and len(post_split[0].body) == 1
         and isinstance(post_split[0].body[0], cst.Return)

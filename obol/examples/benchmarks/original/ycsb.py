@@ -1,4 +1,4 @@
-from obol.core import entity, send_async
+from obol.api import entity, send_async
 
 class NotEnoughCredit(Exception):
     pass

@@ -41,7 +41,8 @@ python scripts/create_config.py \
     --n_keys "$n_keys" \
     --experiment_time "$experiment_time" \
     --warmup_time "$warmup_time" \
-    --scenarios "$scenarios"
+    --scenarios "$scenarios" \
+    --results_dir "$saving_dir"
 
 while IFS= read -r line
 do

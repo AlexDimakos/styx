@@ -18,7 +18,7 @@ from libcst_mypy import MypyTypeInferenceProvider
 from libcst_mypy.utils import MypyType
 
 from obol.comprehension_expander import ComprehensionExpander
-from obol.config import N_PARTITIONS
+from obol.config import N_PARTITIONS, context_in_state_enabled
 from obol.processor import FunctionProcessor
 from obol.transformers import (
     EntityTypeReplacer,
@@ -91,6 +91,31 @@ class StyxTransformer(cst.CSTTransformer):
             cst.SimpleStatementLine(body=[cst.parse_statement("from styx.common.logging import logging").body[0]]),
             cst.EmptyLine(),
         ]
+
+        # Ablation variant: ship the full context dict inside the reply_to
+        # record on every hop instead of parking it in the operator's
+        # persistent function-context store. Generated call sites are
+        # identical; only the two helpers change.
+        context_over_network_helpers = """
+def push_continuation(
+    ctx: StatefulFunction, reply_to: list, op_name: str, fun: str, step_id: str, context: dict
+) -> list:
+    if reply_to is None:
+        reply_to = []
+    reply_to.append(
+        {
+            "op_name": op_name,
+            "fun": fun,
+            "id": step_id,
+            "context": context,
+        }
+    )
+    return reply_to
+
+
+def resolve_context(ctx: StatefulFunction, context_data) -> dict:
+    return context_data
+"""
 
         helpers_code = """
 def send_reply(ctx: StatefulFunction, reply_to: list, result):
@@ -171,6 +196,14 @@ def update_gather_barrier(ctx: StatefulFunction, barrier_id: str, tag, result):
     ctx.put_func_context(ctx_dict)
     return False, None, None, None
 """
+        if not context_in_state_enabled():
+            # Swap the two context helpers for their network-shipping variants,
+            # keeping send_reply and the gather-barrier helpers untouched.
+            start = helpers_code.index("def push_continuation(")
+            end = helpers_code.index("def init_gather_barrier(")
+            helpers_code = (
+                helpers_code[:start] + context_over_network_helpers.strip() + "\n\n\n" + helpers_code[end:]
+            )
         helpers_module = cst.parse_module(helpers_code)
         helpers = [*list(helpers_module.body), cst.EmptyLine()]
 
@@ -519,7 +552,29 @@ def main():
         default=None,
         help="path to write the compiled output (default: examples/compiled/<input filename>)",
     )
+    parser.add_argument(
+        "--no-tail-call",
+        action="store_true",
+        help="ablation: disable the distributed tail-call optimization",
+    )
+    parser.add_argument(
+        "--no-liveness",
+        action="store_true",
+        help="ablation: capture all defined variables at each split instead of the live set",
+    )
+    parser.add_argument(
+        "--context-over-network",
+        action="store_true",
+        help="ablation: ship continuation context inside reply_to instead of the state store",
+    )
     args = parser.parse_args()
+
+    if args.no_tail_call:
+        os.environ["OBOL_DISABLE_TAIL_CALL"] = "1"
+    if args.no_liveness:
+        os.environ["OBOL_DISABLE_LIVENESS"] = "1"
+    if args.context_over_network:
+        os.environ["OBOL_CONTEXT_OVER_NETWORK"] = "1"
 
     output_file = args.output if args.output is not None else Path("examples/compiled") / args.input.name
 

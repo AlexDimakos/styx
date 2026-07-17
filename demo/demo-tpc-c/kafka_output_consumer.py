@@ -4,7 +4,7 @@ import sys
 
 from aiokafka import AIOKafkaConsumer
 import pandas as pd
-from pure_kafka_demo import g
+from pure_kafka_demo import g as default_graph
 from styx.common.serialization import msgpack_deserialization
 import uvloop
 
@@ -16,9 +16,10 @@ def all_egress_topics_created(topics: set[str], egress_topic_names: list[str]):
     return True
 
 
-async def consume(save_dir):
-
-    egress_topic_names: list[str] = g.get_egress_topic_names()
+async def consume(save_dir, graph=None):
+    if graph is None:
+        graph = default_graph
+    egress_topic_names: list[str] = graph.get_egress_topic_names()
 
     records = []
     consumer = AIOKafkaConsumer(
@@ -54,12 +55,12 @@ async def consume(save_dir):
                                   columns=["request_id", "response", "timestamp"]).sort_values(by="timestamp").to_csv(f"{save_dir}/output.csv",
                                                                                                                       index=False)
 
-def main(save_dir=None):
+def main(save_dir=None, graph=None):
     if save_dir is None:
         print("Save directory for the results not provided.")
         exit(1)
 
-    uvloop.run(consume(save_dir))
+    uvloop.run(consume(save_dir, graph))
 
 
 if __name__ == "__main__":
