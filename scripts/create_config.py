@@ -133,17 +133,30 @@ tpcc_system = os.environ.get("TPCC_SYSTEM", "handwritten")
 # 10 warehouses -> high contention, 100 warehouses -> low contention.
 TPCC_WAREHOUSES = [int(w) for w in os.environ.get("TPCC_WAREHOUSES", "10 100").split()]
 
-# Offered-rate sweep (single client thread) with a per-warehouse-count cap.
+# Offered-rate sweep with a per-warehouse-count cap. Each pair is
+# (per-thread rate, client threads); offered throughput is their product.
 TPCC_MAX_RATE = {10: 4000, 100: 10000}
-TPCC_RATES = list(range(100, 4001, 200))
+TPCC_RATES = [(v, 1) for v in range(100, 4001, 200)]
+
+# Low contention (100 wh) does not saturate by 4k, so push toward its 10k cap.
+# A single client thread cannot offer much beyond ~3-4k txn/s of TPC-C input,
+# hence the extra points scale client threads instead (like the YCSB sweep).
+TPCC_EXTRA_RATES = {
+    100: [
+        (2200, 2), (2400, 2), (2600, 2), (2800, 2), (3000, 2),  # 4.4k .. 6k
+        (2400, 3), (2700, 3), (3000, 3),                        # 7.2k .. 9k
+        (2500, 4),                                              # 10k
+    ],
+}
 
 if "tpcc" in scenarios:
-    for input_rate in TPCC_RATES:
-        for n_w in TPCC_WAREHOUSES:
-            if input_rate > TPCC_MAX_RATE.get(n_w, TPCC_RATES[-1]):
+    for n_w in TPCC_WAREHOUSES:
+        for input_rate, n_threads in TPCC_RATES + TPCC_EXTRA_RATES.get(n_w, []):
+            tput = input_rate * n_threads
+            if tput > TPCC_MAX_RATE.get(n_w, 4000):
                 continue
-            add("tpcc", input_rate, n_w, 0.0, 1, 100,
-                f"tpcc_{tpcc_system}_W{n_w}_{input_rate}_ALL.json")
+            add("tpcc", input_rate, n_w, 0.0, n_threads, 100,
+                f"tpcc_{tpcc_system}_W{n_w}_{tput}_ALL.json")
 
 
 # ============================================================================
