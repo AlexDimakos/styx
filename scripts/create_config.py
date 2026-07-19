@@ -135,18 +135,15 @@ TPCC_WAREHOUSES = [int(w) for w in os.environ.get("TPCC_WAREHOUSES", "10 100").s
 
 # Offered-rate sweep with a per-warehouse-count cap. Each pair is
 # (per-thread rate, client threads); offered throughput is their product.
-TPCC_MAX_RATE = {10: 4000, 100: 10000}
+TPCC_MAX_RATE = {10: 4000, 100: 7000}
 TPCC_RATES = [(v, 1) for v in range(100, 4001, 200)]
 
-# Low contention (100 wh) does not saturate by 4k, so push toward its 10k cap.
-# A single client thread cannot offer much beyond ~3-4k txn/s of TPC-C input,
-# hence the extra points scale client threads instead (like the YCSB sweep).
+# Low contention (100 wh) does not saturate by 4k, so extend its sweep to 7k
+# at the same 200 txn/s granularity. A single client thread cannot offer much
+# beyond ~3-4k txn/s of TPC-C input, so the extension uses 2 client threads
+# at half the per-thread rate (like the YCSB sweep).
 TPCC_EXTRA_RATES = {
-    100: [
-        (2200, 2), (2400, 2), (2600, 2), (2800, 2), (3000, 2),  # 4.4k .. 6k
-        (2400, 3), (2700, 3), (3000, 3),                        # 7.2k .. 9k
-        (2500, 4),                                              # 10k
-    ],
+    100: [(tput // 2, 2) for tput in range(4200, 7001, 200)],
 }
 
 if "tpcc" in scenarios:
