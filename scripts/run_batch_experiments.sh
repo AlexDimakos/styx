@@ -60,6 +60,21 @@ do
   enable_compression="${ss[9]}"
   use_composite_keys="${ss[10]}"
 
+  # Saturation early-out: once a (system, keyspace/warehouse) curve already
+  # has SATURATION_EXTRA_POINTS completed points past the p50 SLO, higher
+  # rates add nothing to the saturation curve — skip them.
+  offered_tput=$((input_rate * client_threads))
+  skip_prefix=""
+  if [[ "$scenarios" == "tpcc" ]]; then
+      skip_prefix="tpcc_${TPCC_SYSTEM:-handwritten}_W${n_keys}_"
+  elif [[ "$scenarios" == "ycsb" ]]; then
+      skip_prefix="ycsbt_${YCSB_SYSTEM:-handwritten}_K${n_keys}_"
+  fi
+  if [[ -n "$skip_prefix" ]] && python scripts/saturation_check.py "$saving_dir" "$skip_prefix" "$offered_tput"; then
+      printf 'SKIP (curve saturated): %s%s\n' "$skip_prefix" "$offered_tput"
+      continue
+  fi
+
   ./scripts/run_experiment.sh "$workload_name" "$input_rate" "$n_keys" "$n_part" "$zipf_const" "$client_threads" \
                               "$total_time" "$saving_dir" "$warmup_seconds" "$epoch_size" "$styx_threads_per_worker" \
                               "$enable_compression" "$use_composite_keys"
