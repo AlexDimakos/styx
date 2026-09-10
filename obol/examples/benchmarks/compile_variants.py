@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
 """Regenerate every compiled benchmark variant used by the experiment scripts.
 
-For TPC-C this produces the full system plus one variant per ablated
-optimization (each variant disables exactly one optimization, everything
-else stays on):
+For TPC-C this produces a *cumulative* optimization ladder: a naive baseline
+with every optimization off, then one rung per optimization switched on, up to
+the full system. Consecutive rungs differ by exactly one optimization, so
+(rung N+1 - rung N) isolates that optimization's contribution.
 
     variant     source              compiler flags
-    ---------   -----------------   --------------------------------
-    gather      tpcc.py             (none — the full system)
+    ---------   -----------------   ---------------------------------------
+    naive       tpcc.py             OBOL_DISABLE_TAIL_CALL=1
+                                    OBOL_CONTEXT_OVER_NETWORK=1
+                                    OBOL_DISABLE_LIVENESS=1
+    opt_tco     tpcc.py             OBOL_CONTEXT_OVER_NETWORK=1
+                                    OBOL_DISABLE_LIVENESS=1
+    opt_ctx     tpcc.py             OBOL_DISABLE_LIVENESS=1
+    gather      tpcc.py             (none — the full system, top of the ladder)
     no_gather   tpcc_no_gather.py   (none — sequential source)
-    no_tco      tpcc.py             OBOL_DISABLE_TAIL_CALL=1
-    ctx_net     tpcc.py             OBOL_CONTEXT_OVER_NETWORK=1
-    no_live     tpcc.py             OBOL_DISABLE_LIVENESS=1
+
+Every rung keeps `gather` on; `no_gather` sits outside the ladder and is the
+source-level variant used by the main three-system comparison figure.
 
 Each variant is written twice: once under ``compiled/`` (reference output,
 next to the sources) and once into the TPC-C demo's ``functions`` package
@@ -42,13 +49,18 @@ ABLATION_ENV_VARS = (
     "OBOL_CONTEXT_OVER_NETWORK",
 )
 
-# variant name -> (source file, {env var: value})
+# variant name -> (source file, {env var: value}).
+# The first four entries are the cumulative ladder, in order: each one turns on
+# exactly one more optimization than the entry above it.
 TPCC_VARIANTS = {
+    "naive": ("tpcc.py", {"OBOL_DISABLE_TAIL_CALL": "1",
+                          "OBOL_CONTEXT_OVER_NETWORK": "1",
+                          "OBOL_DISABLE_LIVENESS": "1"}),
+    "opt_tco": ("tpcc.py", {"OBOL_CONTEXT_OVER_NETWORK": "1",
+                            "OBOL_DISABLE_LIVENESS": "1"}),
+    "opt_ctx": ("tpcc.py", {"OBOL_DISABLE_LIVENESS": "1"}),
     "gather": ("tpcc.py", {}),
     "no_gather": ("tpcc_no_gather.py", {}),
-    "no_tco": ("tpcc.py", {"OBOL_DISABLE_TAIL_CALL": "1"}),
-    "ctx_net": ("tpcc.py", {"OBOL_CONTEXT_OVER_NETWORK": "1"}),
-    "no_live": ("tpcc.py", {"OBOL_DISABLE_LIVENESS": "1"}),
 }
 
 

@@ -7,17 +7,20 @@ from styx.common.stateflow_graph import StateflowGraph
 # Select which Obol-compiled TPC-C variant to run via env var so the batch
 # orchestrator can switch systems without editing this file. 
 #
-#   TPCC_COMPILED_VARIANT=gather     -> full system (default)
+# The first four form a cumulative optimization ladder (each turns on exactly
+# one more optimization than the previous); all four keep the gather fan-out.
+#
+#   TPCC_COMPILED_VARIANT=naive      -> no tail-call, context over network, no liveness
+#   TPCC_COMPILED_VARIANT=opt_tco    -> + distributed tail-call optimization
+#   TPCC_COMPILED_VARIANT=opt_ctx    -> + context-in-state (only a ctx id on the wire)
+#   TPCC_COMPILED_VARIANT=gather     -> + live-variable analysis = full system (default)
 #   TPCC_COMPILED_VARIANT=no_gather  -> sequential dispatch instead of gather fan-out
-#   TPCC_COMPILED_VARIANT=no_tco     -> no distributed tail-call optimization
-#   TPCC_COMPILED_VARIANT=ctx_net    -> live context shipped in reply_to over the network
-#   TPCC_COMPILED_VARIANT=no_live    -> full defined-variable capture (no liveness analysis)
 VARIANT_MODULES = {
+    "naive": "functions.compiled_functions_naive",
+    "opt_tco": "functions.compiled_functions_opt_tco",
+    "opt_ctx": "functions.compiled_functions_opt_ctx",
     "gather": "functions.compiled_functions",
     "no_gather": "functions.compiled_functions_no_gather",
-    "no_tco": "functions.compiled_functions_no_tco",
-    "ctx_net": "functions.compiled_functions_ctx_net",
-    "no_live": "functions.compiled_functions_no_live",
 }
 
 _variant = os.environ.get("TPCC_COMPILED_VARIANT", "gather")

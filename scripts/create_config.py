@@ -123,7 +123,7 @@ if "dmr" in scenarios:
 # TPC-C saturation sweep (hand-written Styx vs Obol-compiled variants)
 #
 # The system token comes from $TPCC_SYSTEM (handwritten | obol_gather |
-# obol_nogather | obol_no_tco | obol_ctx_net | obol_no_live) so every system
+# obol_nogather | obol_naive | obol_opt_tco | obol_opt_ctx) so every system
 # writes distinct result files and reruns skip already-completed points.
 # ============================================================================
 

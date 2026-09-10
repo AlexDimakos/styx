@@ -190,7 +190,7 @@ async def get_district(ctx: StatefulFunction, w_id: int, d_id: int, c_id: int,
     ctx.put(__state__)
     ctx.call_remote_async(operator_name = 'neworder', function_name = 'insert', key = str(w_id) + ":" + str(d_id) + ":" + str(d_next_o_id), params = (w_id, d_id, d_next_o_id, [{'sink': True}]))
     _g_iter = list(range(len(i_ids)))
-    _gather_id = init_gather_barrier(ctx, len(_g_iter), {}, reply_to)
+    _gather_id = init_gather_barrier(ctx, len(_g_iter), {'all_local': all_local, 'c_id': c_id, 'd_id': d_id, 'd_next_o_id': d_next_o_id, 'i_ids': i_ids, 'i_qtys': i_qtys, 'i_w_ids': i_w_ids, 'o_entry_d': o_entry_d, 'w_id': w_id}, reply_to)
     if len(_g_iter) == 0:
         ctx.put(__state__)
         ctx.call_remote_async(operator_name = 'district', function_name = 'get_district_step_2', key = ctx.key, params = ({'_g_barrier': _gather_id, '_g_tag': 0}, None, None))
@@ -209,6 +209,7 @@ async def get_district_step_2(ctx: StatefulFunction, func_context, _gather_parti
     if not is_complete:
         return
     __state__ = ctx.get() or {}
+    (all_local, c_id, d_id, d_next_o_id, i_ids, i_qtys, i_w_ids, o_entry_d, w_id) = (saved.get('all_local'), saved.get('c_id'), saved.get('d_id'), saved.get('d_next_o_id'), saved.get('i_ids'), saved.get('i_qtys'), saved.get('i_w_ids'), saved.get('o_entry_d'), saved.get('w_id'))
     reply_to = parent_reply_to
     item_replies = _g_results
     __state__['D_NEXT_O_ID'] += 1
@@ -625,7 +626,7 @@ async def new_order(ctx: StatefulFunction, params: dict, reply_to: list = None) 
             break
     district = f"{w_id}:{d_id}"
     customer = f"{w_id}:{d_id}:{c_id}"
-    _gather_id = init_gather_barrier(ctx, 3, {'o_entry_d': o_entry_d}, reply_to)
+    _gather_id = init_gather_barrier(ctx, 3, {'all_local': all_local, 'c_id': c_id, 'customer': customer, 'd_id': d_id, 'district': district, 'i_ids': i_ids, 'i_qtys': i_qtys, 'i_w_ids': i_w_ids, 'item_w_id': item_w_id, 'o_entry_d': o_entry_d, 'params': params, 'w_id': w_id}, reply_to)
     _g_reply_0 = [{'op_name': 'newordertxn', 'fun': 'new_order_step_2', 'id': ctx.key, 'context': {'_g_barrier': _gather_id, '_g_tag': 0}}]
     ctx.call_remote_async(operator_name = 'warehouse', function_name = 'get_warehouse', key = w_id, params = (_g_reply_0,))
     _g_reply_1 = [{'op_name': 'newordertxn', 'fun': 'new_order_step_2', 'id': ctx.key, 'context': {'_g_barrier': _gather_id, '_g_tag': 1}}]
@@ -640,7 +641,7 @@ async def new_order_step_2(ctx: StatefulFunction, func_context, _gather_partial 
     (is_complete, _g_results, saved, parent_reply_to) = update_gather_barrier(ctx, barrier_id, _g_tag, _gather_partial)
     if not is_complete:
         return
-    (o_entry_d,) = (saved.get('o_entry_d'),)
+    (all_local, c_id, customer, d_id, district, i_ids, i_qtys, i_w_ids, item_w_id, o_entry_d, params, w_id) = (saved.get('all_local'), saved.get('c_id'), saved.get('customer'), saved.get('d_id'), saved.get('district'), saved.get('i_ids'), saved.get('i_qtys'), saved.get('i_w_ids'), saved.get('item_w_id'), saved.get('o_entry_d'), saved.get('params'), saved.get('w_id'))
     reply_to = parent_reply_to
     warehouse_data, district_bundle, customer_data = _g_results
     district_data = district_bundle['district']
@@ -724,7 +725,7 @@ async def payment(ctx: StatefulFunction, params: dict, reply_to: list = None) ->
     __state__['H_DATE'] = h_date
     __state__['H_AMOUNT'] = h_amount
     district = f"{w_id}:{d_id}"
-    _gather_id = init_gather_barrier(ctx, 3, {}, reply_to)
+    _gather_id = init_gather_barrier(ctx, 3, {'attr_1': attr_1, 'attr_2': attr_2, 'c_d_id': c_d_id, 'c_id': c_id, 'c_last': c_last, 'c_w_id': c_w_id, 'd_id': d_id, 'district': district, 'h_amount': h_amount, 'h_date': h_date, 'params': params, 'w_id': w_id}, reply_to)
     _g_reply_0 = [{'op_name': 'paymenttxn', 'fun': 'payment_step_2', 'id': ctx.key, 'context': {'_g_barrier': _gather_id, '_g_tag': 0}}]
     ctx.put(__state__)
     ctx.call_remote_async(operator_name = 'paymenttxn', function_name = 'get_customer_data', key = ctx.key, params = (c_last, _g_reply_0))
@@ -743,6 +744,7 @@ async def payment_step_2(ctx: StatefulFunction, func_context, _gather_partial = 
     if not is_complete:
         return
     __state__ = ctx.get() or {}
+    (attr_1, attr_2, c_d_id, c_id, c_last, c_w_id, d_id, district, h_amount, h_date, params, w_id) = (saved.get('attr_1'), saved.get('attr_2'), saved.get('c_d_id'), saved.get('c_id'), saved.get('c_last'), saved.get('c_w_id'), saved.get('d_id'), saved.get('district'), saved.get('h_amount'), saved.get('h_date'), saved.get('params'), saved.get('w_id'))
     reply_to = parent_reply_to
     customer_data, district_data, warehouse_data = _g_results
     h_data = f"{warehouse_data['W_NAME']}    {district_data['D_NAME']}"

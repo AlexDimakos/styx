@@ -160,3 +160,6 @@ logs
 
 charts/styx-cluster/Chart.lock
 charts/styx-cluster/charts
+
+
+paper.tex

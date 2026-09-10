@@ -1,4 +1,4 @@
-# Obol benchmarks: YCSB, TPC-C, and the optimization ablation study
+# Obol benchmarks: YCSB, TPC-C, and the optimization ladder
 
 This directory contains everything needed to (re)run the Obol vs hand-written
 Styx experiments and to render the figures: the annotated benchmark sources,
@@ -12,33 +12,54 @@ the plotting scripts.
 | `original/` | Annotated OOP sources fed to the Obol compiler |
 | `compiled/` | Reference compiler outputs, one file per system variant |
 | `compile_variants.py` | Regenerates every compiled variant (see below) |
-| `run_tpcc_all_systems.sh` | TPC-C sweep over all systems + ablation variants |
+| `run_tpcc_all_systems.sh` | TPC-C sweep over all systems + ladder rungs |
 | `run_ycsb_all_systems.sh` | YCSB sweep over hand-written and Obol |
 | `plots_tpcc.py` / `plots_ycsb.py` | Main comparison figures |
-| `plots_tpcc_ablation.py` | Ablation figures + summary table |
+| `plots_tpcc_ablation.py` | Optimization-ladder overview figure (curves + boxes + bars) + summary table |
+| `plots_tpcc_ablation_grid.py` | Same ladder data as small multiples, one panel per rung |
 | `results*/` | Result JSONs, one directory per run (not committed) |
 | `figures/` | Rendered PNGs |
 
-## Systems and ablation variants
+## Systems and the optimization ladder
 
-The TPC-C sweep runs six systems. Each Obol ablation variant disables exactly
-one optimization relative to the full system, so the gap between
-`obol_gather` and a variant isolates that optimization's contribution:
+The TPC-C sweep runs six systems. Four of them form a **cumulative ladder**:
+a naive baseline with every optimization off, then one optimization switched
+on per rung, up to the full system. Consecutive rungs differ by exactly one
+optimization, so the step from one rung to the next is that optimization's
+contribution. Every rung keeps the `gather` fan-out on.
 
-| System token | Compiled variant | What is ablated |
+| System token | Compiled variant | Tail-call | Ctx-in-state | Liveness |
+|---|---|:--:|:--:|:--:|
+| `obol_naive` | `naive` | — | — | — |
+| `obol_opt_tco` | `opt_tco` | on | — | — |
+| `obol_opt_ctx` | `opt_ctx` | on | on | — |
+| `obol_gather` | `gather` | on | on | on |
+
+Two systems sit outside the ladder:
+
+| System token | Compiled variant | What it is |
 |---|---|---|
-| `handwritten` | — | Baseline: hand-written Styx operators |
-| `obol_gather` | `gather` | Nothing — the full system |
-| `obol_nogather` | `no_gather` | `gather` fan-out: independent remote calls are dispatched sequentially |
-| `obol_no_tco` | `no_tco` | Distributed tail-call optimization: replies route back through every intermediate entity |
-| `obol_ctx_net` | `ctx_net` | Context-in-state: the live context dict travels inside `reply_to` over the network instead of being saved in the operator's function-context store |
-| `obol_no_live` | `no_live` | Live-variable analysis: every defined variable is serialized at each split, not just the live set |
+| `handwritten` | — | Baseline: hand-written Styx operators (the performance ceiling) |
+| `obol_nogather` | `no_gather` | Full Obol compiled from a source written without `gather`, so every cross-entity call is dispatched sequentially |
 
-The variants are produced by compiler flags (see `obol --help`:
+The three optimizations, in the order the ladder adds them:
+
+- **Distributed tail-call optimization** — when a step ends in
+  `return other.method(...)`, forward the caller's reply-to address instead of
+  routing the reply back through the intermediate entity. Off, the compiler
+  emits a `*_step_2` trampoline per delegated return whose only job is to
+  forward the reply.
+- **Context-in-state** — save the live continuation context in the operator's
+  function-context store and put only a small integer id in `reply_to`. Off,
+  the whole context dict travels the network on every hop, forward and back.
+- **Live-variable analysis** — serialize only the variables still live past
+  the split. Off, every variable defined so far is captured at each split.
+
+Ladder rungs are produced by compiler flags (see `obol --help`:
 `--no-tail-call`, `--context-over-network`, `--no-liveness`), wired through
 the `OBOL_DISABLE_TAIL_CALL`, `OBOL_CONTEXT_OVER_NETWORK`, and
 `OBOL_DISABLE_LIVENESS` environment variables. `no_gather` is a source-level
-variant (`original/tpcc_no_gather.py`). All ablation is client-side: every
+variant (`original/tpcc_no_gather.py`). Everything is client-side: every
 variant ships a different compiled dataflow graph to the *same* cluster
 image, so no rebuild is needed between systems.
 
@@ -59,8 +80,8 @@ repo root themselves. Positional API (all optional):
 # full TPC-C sweep, all six systems (cluster example):
 nohup bash obol/examples/benchmarks/run_tpcc_all_systems.sh results 80 60 30 10 > tpcc_logs.log 2>&1 &
 
-# only the ablation variants you still need:
-bash obol/examples/benchmarks/run_tpcc_all_systems.sh results 80 60 30 10 obol_no_tco obol_ctx_net
+# only the ladder rungs you still need:
+bash obol/examples/benchmarks/run_tpcc_all_systems.sh results 80 60 30 10 obol_naive obol_opt_tco obol_opt_ctx
 
 # YCSB, both systems:
 nohup bash obol/examples/benchmarks/run_ycsb_all_systems.sh results 80 60 30 10 > ycsb_logs.log 2>&1 &
@@ -85,12 +106,29 @@ scripts average every directory and additionally render a figure for
 ## Plotting
 
 ```bash
-python plots_tpcc.py           # figures/saturation_wh[_avg].png (3 main systems)
-python plots_ycsb.py           # figures/ycsb_results[_avg].png
-python plots_tpcc_ablation.py  # figures/ablation_saturation.png,
-                               # figures/ablation_summary.png + .csv
+python plots_tpcc.py                # figures/saturation_wh[_avg].png
+                                    #   3 systems: hand-written, Obol (gather),
+                                    #   Obol (no gather)
+python plots_ycsb.py                # figures/ycsb_results[_avg].png
+python plots_tpcc_ablation.py       # figures/optimization_ladder.png + .csv
+python plots_tpcc_ablation_grid.py  # figures/optimization_ladder_grid.png
 ```
 
-`plots_tpcc_ablation.py --slo-ms 200` changes the p50 SLO used for the
-sustained-throughput summary bars (default 100 ms). All scripts accept
-`--hi-res` for 300 dpi output.
+`optimization_ladder.png` is one figure with three rows, one column per
+warehouse count:
+
+1. **saturation curves** — latency vs offered throughput, p50 solid / p99
+   dashed, same style as `plots_tpcc.py`;
+2. **latency distribution** — one box per configuration at a single offered
+   rate, reconstructed from the percentiles in the result files (box spans
+   p25–p75, interpolated from the recorded deciles; the median line and the
+   p10/p99 whiskers are measured values);
+3. **sustained throughput** — the highest offered rate each configuration
+   holds while keeping p50 within the SLO.
+
+Options: `--slo-ms 200` changes the p50 SLO used by rows 2 and 3 (default
+100 ms); `--box-tput 2000` picks the offered rate for the boxes, snapped to
+the nearest rate every configuration measured (default: the rate the full
+system sustains under the SLO); `--no-reference` drops the hand-written Styx
+reference and plots the four Obol rungs alone. All scripts accept `--hi-res`
+for 300 dpi output.
