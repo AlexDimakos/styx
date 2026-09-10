@@ -40,6 +40,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 cd "$REPO_ROOT"
 
+# Fail fast if the k8s cluster is unreachable -- otherwise every experiment in
+# the sweep would individually attempt (and fail) the full helm install.
+DEPLOY_MODE=${DEPLOY_MODE:-docker-compose}
+if [[ "$DEPLOY_MODE" == k8s-* ]]; then
+    if ! kubectl get nodes --request-timeout=10s > /dev/null 2>&1; then
+        echo "ERROR: kubectl cannot reach the cluster (DEPLOY_MODE=$DEPLOY_MODE)." >&2
+        echo "       Check KUBECONFIG (kubectl get nodes) before starting the sweep." >&2
+        exit 1
+    fi
+fi
+
 SAVING_DIR=${1:-results}
 PARTITIONS=${2:-4}
 EXP_TIME=${3:-60}
