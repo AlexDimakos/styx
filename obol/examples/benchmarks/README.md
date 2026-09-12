@@ -28,12 +28,20 @@ on per rung, up to the full system. Consecutive rungs differ by exactly one
 optimization, so the step from one rung to the next is that optimization's
 contribution. Every rung keeps the `gather` fan-out on.
 
-| System token | Compiled variant | Tail-call | Ctx-in-state | Liveness |
+| System token | Compiled variant | Ctx-in-state | Tail-call | Liveness |
 |---|---|:--:|:--:|:--:|
 | `obol_naive` | `naive` | — | — | — |
-| `obol_opt_tco` | `opt_tco` | on | — | — |
-| `obol_opt_ctx` | `opt_ctx` | on | on | — |
+| `obol_opt_ctx` | `opt_ctx` | on | — | — |
+| `obol_opt_tco` | `opt_tco` | on | on | — |
 | `obol_gather` | `gather` | on | on | on |
+
+**Why context-in-state comes first.** Every continuation site in TPC-C is a
+tail call, so enabling the tail-call optimization removes all four of them. If
+tail-call came first, context-in-state would have nothing left to transport and
+the two variants would compile to byte-identical programs — the rung would
+measure nothing. In this order each rung changes something real: `opt_ctx`
+keeps the four continuation sites but ships a context id instead of the whole
+dict, and `opt_tco` then deletes the sites outright.
 
 Two systems sit outside the ladder:
 
@@ -44,16 +52,21 @@ Two systems sit outside the ladder:
 
 The three optimizations, in the order the ladder adds them:
 
+- **Context-in-state** — save the live continuation context in the operator's
+  function-context store and put only a small integer id in `reply_to`. Off,
+  the whole context dict travels the network on every hop, forward and back.
 - **Distributed tail-call optimization** — when a step ends in
   `return other.method(...)`, forward the caller's reply-to address instead of
   routing the reply back through the intermediate entity. Off, the compiler
   emits a `*_step_2` trampoline per delegated return whose only job is to
-  forward the reply.
-- **Context-in-state** — save the live continuation context in the operator's
-  function-context store and put only a small integer id in `reply_to`. Off,
-  the whole context dict travels the network on every hop, forward and back.
+  forward the reply. TPC-C has four such sites: `Item.get_item` (hit once per
+  order line, so 5–15 times per New-Order), `CustomerIndex.pay`, and both
+  branches of `PaymentTxn.get_customer_data`.
 - **Live-variable analysis** — serialize only the variables still live past
   the split. Off, every variable defined so far is captured at each split.
+  With tail-call on, what this actually shrinks is the `gather` barrier's
+  saved-variable dict: the item fan-out in `District.get_district` drops from
+  9 saved variables (including three 5–15 element lists) to none.
 
 Ladder rungs are produced by compiler flags (see `obol --help`:
 `--no-tail-call`, `--context-over-network`, `--no-liveness`), wired through
@@ -81,7 +94,7 @@ repo root themselves. Positional API (all optional):
 nohup bash obol/examples/benchmarks/run_tpcc_all_systems.sh results 80 60 30 10 > tpcc_logs.log 2>&1 &
 
 # only the ladder rungs you still need:
-bash obol/examples/benchmarks/run_tpcc_all_systems.sh results 80 60 30 10 obol_naive obol_opt_tco obol_opt_ctx
+bash obol/examples/benchmarks/run_tpcc_all_systems.sh results 80 60 30 10 obol_naive obol_opt_ctx obol_opt_tco
 
 # YCSB, both systems:
 nohup bash obol/examples/benchmarks/run_ycsb_all_systems.sh results 80 60 30 10 > ycsb_logs.log 2>&1 &

@@ -275,8 +275,15 @@ async def get_item(ctx: StatefulFunction, index: int, w_id: int, d_id: int,
     attr_1 = __state__['I_DATA'].find("original")
     i_brand_generic = attr_1 != -1
     stock = f"{i_w_id}:{ctx.key}"
+    reply_to = push_continuation(ctx, reply_to, 'item', 'get_item_step_2', ctx.key, {'attr_1': attr_1, 'd_id': d_id, 'd_next_o_id': d_next_o_id, 'i_brand_generic': i_brand_generic, 'i_qty': i_qty, 'i_w_id': i_w_id, 'index': index, 'o_entry_d': o_entry_d, 'stock': stock, 'w_id': w_id})
     ctx.put(__state__)
     ctx.call_remote_async(operator_name = 'stock', function_name = 'update_stock', key = stock, params = (index, d_next_o_id, ctx.key, w_id, d_id, i_w_id, o_entry_d, i_qty, __state__['I_NAME'], __state__['I_PRICE'], i_brand_generic, reply_to))
+
+@item_operator.register
+async def get_item_step_2(ctx: StatefulFunction, func_context, stock_reply = None, reply_to: list = None):
+    params = resolve_context(ctx, func_context)
+    (attr_1, d_id, d_next_o_id, i_brand_generic, i_qty, i_w_id, index, o_entry_d, stock, w_id) = (params.get('attr_1'), params.get('d_id'), params.get('d_next_o_id'), params.get('i_brand_generic'), params.get('i_qty'), params.get('i_w_id'), params.get('index'), params.get('o_entry_d'), params.get('stock'), params.get('w_id'))
+    return send_reply(ctx, reply_to, stock_reply)
 
 customer_operator = Operator('customer', n_partitions=4, composite_key_hash_params=(0, ':'))
 
@@ -381,8 +388,15 @@ async def pay(ctx: StatefulFunction, h_amount: float, d_id: int, w_id: int, repl
     __state__ = ctx.get() or {}
     index = (len(__state__['customers']) - 1) // 2
     customer = __state__['customers'][index]
+    reply_to = push_continuation(ctx, reply_to, 'customerindex', 'pay_step_2', ctx.key, {'customer': customer, 'd_id': d_id, 'h_amount': h_amount, 'index': index, 'w_id': w_id})
     ctx.put(__state__)
     ctx.call_remote_async(operator_name = 'customer', function_name = 'pay', key = customer, params = (h_amount, d_id, w_id, reply_to))
+
+@customerindex_operator.register
+async def pay_step_2(ctx: StatefulFunction, func_context, attr_1 = None, reply_to: list = None):
+    params = resolve_context(ctx, func_context)
+    (customer, d_id, h_amount, index, w_id) = (params.get('customer'), params.get('d_id'), params.get('h_amount'), params.get('index'), params.get('w_id'))
+    return send_reply(ctx, reply_to, attr_1)
 
 stock_operator = Operator('stock', n_partitions=4, composite_key_hash_params=(0, ':'))
 
@@ -708,12 +722,26 @@ async def get_customer_data(ctx: StatefulFunction, c_last: Optional[str], reply_
     __state__ = ctx.get() or {}
     if __state__['C_ID'] is not None:
         customer = f"{__state__['C_W_ID']}:{__state__['C_D_ID']}:{__state__['C_ID']}"
+        reply_to = push_continuation(ctx, reply_to, 'paymenttxn', 'get_customer_data_step_2', ctx.key, {'c_last': c_last, 'customer': customer})
         ctx.put(__state__)
         ctx.call_remote_async(operator_name = 'customer', function_name = 'pay', key = customer, params = (__state__['H_AMOUNT'], __state__['D_ID'], __state__['W_ID'], reply_to))
     else:
         customer_idx = f"{__state__['C_W_ID']}:{__state__['C_D_ID']}:{c_last}"
+        reply_to = push_continuation(ctx, reply_to, 'paymenttxn', 'get_customer_data_step_3', ctx.key, {'c_last': c_last, 'customer_idx': customer_idx})
         ctx.put(__state__)
         ctx.call_remote_async(operator_name = 'customerindex', function_name = 'pay', key = customer_idx, params = (__state__['H_AMOUNT'], __state__['D_ID'], __state__['W_ID'], reply_to))
+
+@paymenttxn_operator.register
+async def get_customer_data_step_2(ctx: StatefulFunction, func_context, attr_1 = None, reply_to: list = None):
+    params = resolve_context(ctx, func_context)
+    (c_last, customer) = (params.get('c_last'), params.get('customer'))
+    return send_reply(ctx, reply_to, attr_1)
+
+@paymenttxn_operator.register
+async def get_customer_data_step_3(ctx: StatefulFunction, func_context, attr_2 = None, reply_to: list = None):
+    params = resolve_context(ctx, func_context)
+    (c_last, customer_idx) = (params.get('c_last'), params.get('customer_idx'))
+    return send_reply(ctx, reply_to, attr_2)
 
 
 @paymenttxn_operator.register

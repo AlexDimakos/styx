@@ -14,6 +14,7 @@ per warehouse count:
   row 3  sustained throughput: highest offered rate each configuration holds
          while keeping p50 within the SLO (default 100 ms)
 
+The rungs are naive -> + context-in-state -> + tail-call -> + liveness.
 Because consecutive rungs differ by exactly one optimization, the step between
 two neighbouring series/boxes/bars is that optimization's contribution.
 
@@ -67,16 +68,19 @@ SYS = {
                          color="#2a78d6", marker="o"),
     "obol_naive":   dict(label="Obol naive (gather only)", short="naive",
                          color="#eb6834", marker="P"),
-    "obol_opt_tco": dict(label="+ tail-call opt.", short="+ tail-call",
-                         color="#eda100", marker="D"),
     "obol_opt_ctx": dict(label="+ context-in-state", short="+ ctx-in-state",
+                         color="#eda100", marker="D"),
+    "obol_opt_tco": dict(label="+ tail-call opt.", short="+ tail-call",
                          color="#1baf7a", marker="v"),
     "obol_gather":  dict(label="+ liveness (full Obol)", short="+ liveness\n(full)",
                          color="#008300", marker="s"),
 }
 
-# The ladder itself, in the order optimizations are switched on.
-LADDER = ["obol_naive", "obol_opt_tco", "obol_opt_ctx", "obol_gather"]
+# The ladder itself, in the order optimizations are switched on. Context-in-
+# state comes before the tail-call optimization: every continuation site in
+# TPC-C is a tail call, so enabling tail-call first would leave context-in-
+# state with nothing to transport and the two rungs would be identical.
+LADDER = ["obol_naive", "obol_opt_ctx", "obol_opt_tco", "obol_gather"]
 REFERENCE = "handwritten"
 
 REF_ALPHA = 0.55

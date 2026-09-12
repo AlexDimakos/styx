@@ -11,11 +11,17 @@ the full system. Consecutive rungs differ by exactly one optimization, so
     naive       tpcc.py             OBOL_DISABLE_TAIL_CALL=1
                                     OBOL_CONTEXT_OVER_NETWORK=1
                                     OBOL_DISABLE_LIVENESS=1
-    opt_tco     tpcc.py             OBOL_CONTEXT_OVER_NETWORK=1
+    opt_ctx     tpcc.py             OBOL_DISABLE_TAIL_CALL=1
                                     OBOL_DISABLE_LIVENESS=1
-    opt_ctx     tpcc.py             OBOL_DISABLE_LIVENESS=1
+    opt_tco     tpcc.py             OBOL_DISABLE_LIVENESS=1
     gather      tpcc.py             (none — the full system, top of the ladder)
     no_gather   tpcc_no_gather.py   (none — sequential source)
+
+Context-in-state is applied BEFORE the tail-call optimization on purpose. Every
+continuation site in TPC-C is a tail call, so enabling tail-call first removes
+all four of them and leaves context-in-state with nothing to transport — the
+two variants then compile to byte-identical programs. Ordering it this way
+gives each rung something real to change.
 
 Every rung keeps `gather` on; `no_gather` sits outside the ladder and is the
 source-level variant used by the main three-system comparison figure.
@@ -31,6 +37,7 @@ Run from anywhere with the obol virtualenv:
 """
 
 import argparse
+import io
 import os
 from pathlib import Path
 
@@ -56,9 +63,9 @@ TPCC_VARIANTS = {
     "naive": ("tpcc.py", {"OBOL_DISABLE_TAIL_CALL": "1",
                           "OBOL_CONTEXT_OVER_NETWORK": "1",
                           "OBOL_DISABLE_LIVENESS": "1"}),
-    "opt_tco": ("tpcc.py", {"OBOL_CONTEXT_OVER_NETWORK": "1",
+    "opt_ctx": ("tpcc.py", {"OBOL_DISABLE_TAIL_CALL": "1",
                             "OBOL_DISABLE_LIVENESS": "1"}),
-    "opt_ctx": ("tpcc.py", {"OBOL_DISABLE_LIVENESS": "1"}),
+    "opt_tco": ("tpcc.py", {"OBOL_DISABLE_LIVENESS": "1"}),
     "gather": ("tpcc.py", {}),
     "no_gather": ("tpcc_no_gather.py", {}),
 }
@@ -94,7 +101,8 @@ def post_process(code: str) -> str:
 def write(code: str, *targets: Path) -> None:
     for target in targets:
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(code, encoding="utf-8")
+        with io.open(target, "w", encoding="utf-8", newline="") as fh:
+            fh.write(code)
         print(f"  wrote {target.relative_to(REPO_ROOT)}")
 
 

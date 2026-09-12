@@ -18,9 +18,13 @@
 #
 #   obol_naive      no tail-call opt, context shipped over the network, no
 #                   live-variable analysis (every defined variable captured)
-#   obol_opt_tco    + distributed tail-call optimization
 #   obol_opt_ctx    + context-in-state (only a small ctx id on the wire)
+#   obol_opt_tco    + distributed tail-call optimization
 #   obol_gather     + live-variable analysis = the full system
+#
+# Context-in-state precedes the tail-call optimization deliberately: every
+# continuation site in TPC-C is a tail call, so switching tail-call on first
+# removes all of them and context-in-state would then be a no-op.
 #
 # Because consecutive rungs differ by one optimization, (rung N+1 - rung N)
 # isolates that optimization's contribution. The compiled variants are
@@ -58,7 +62,7 @@ WARMUP=${4:-30}
 STYX_THREADS_PER_WORKER=${5:-1}
 shift $(( $# < 5 ? $# : 5 ))
 
-DEFAULT_SYSTEMS=(handwritten obol_gather obol_nogather obol_naive obol_opt_tco obol_opt_ctx)
+DEFAULT_SYSTEMS=(handwritten obol_gather obol_nogather obol_naive obol_opt_ctx obol_opt_tco)
 if [ $# -gt 0 ]; then
     SYSTEMS=("$@")
 else
@@ -77,8 +81,8 @@ variant_for() {
         obol_gather)   echo gather ;;
         obol_nogather) echo no_gather ;;
         obol_naive)    echo naive ;;
-        obol_opt_tco)  echo opt_tco ;;
         obol_opt_ctx)  echo opt_ctx ;;
+        obol_opt_tco)  echo opt_tco ;;
         *)             return 1 ;;
     esac
 }

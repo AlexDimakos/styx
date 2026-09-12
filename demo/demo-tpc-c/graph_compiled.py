@@ -11,14 +11,14 @@ from styx.common.stateflow_graph import StateflowGraph
 # one more optimization than the previous); all four keep the gather fan-out.
 #
 #   TPCC_COMPILED_VARIANT=naive      -> no tail-call, context over network, no liveness
-#   TPCC_COMPILED_VARIANT=opt_tco    -> + distributed tail-call optimization
 #   TPCC_COMPILED_VARIANT=opt_ctx    -> + context-in-state (only a ctx id on the wire)
+#   TPCC_COMPILED_VARIANT=opt_tco    -> + distributed tail-call optimization
 #   TPCC_COMPILED_VARIANT=gather     -> + live-variable analysis = full system (default)
 #   TPCC_COMPILED_VARIANT=no_gather  -> sequential dispatch instead of gather fan-out
 VARIANT_MODULES = {
     "naive": "functions.compiled_functions_naive",
-    "opt_tco": "functions.compiled_functions_opt_tco",
     "opt_ctx": "functions.compiled_functions_opt_ctx",
+    "opt_tco": "functions.compiled_functions_opt_tco",
     "gather": "functions.compiled_functions",
     "no_gather": "functions.compiled_functions_no_gather",
 }
