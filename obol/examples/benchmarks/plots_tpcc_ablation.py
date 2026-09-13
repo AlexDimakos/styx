@@ -11,8 +11,12 @@ per warehouse count:
   row 2  latency distribution: one box per configuration at a single offered
          rate (by default the heaviest load the full system holds within the
          SLO), reconstructed from the stored percentiles
-  row 3  sustained throughput: highest offered rate each configuration holds
-         while keeping p50 within the SLO (default 100 ms)
+  row 3  saturation point: one grouped bar chart spanning the figure, one
+         group per warehouse count, one bar per configuration. The saturation
+         point is the last offered rate before p50 rises above the knee
+         (default 1000 ms) and stays there at the next rate, so a single
+         transient stall does not count. Curves that never cross are drawn
+         hatched as a lower bound.
 
 The rungs are naive -> + context-in-state -> + tail-call -> + liveness.
 Because consecutive rungs differ by exactly one optimization, the step between
@@ -285,7 +289,7 @@ def draw_boxes(ax, panel, order, slo_ms, requested_tput):
     return tput, list(zip(systems, stats))
 
 
-# -- Row 3: sustained-throughput bars ----------------------------------
+# -- Row 3: saturation points ------------------------------------------
 
 
 def sustained_throughput(rows, slo_ms):
@@ -294,67 +298,121 @@ def sustained_throughput(rows, slo_ms):
     return max(ok) if ok else None
 
 
-def draw_bars(ax, panel, order, slo_ms):
-    systems = [s for s in order if s in panel]
+def saturation_point(rows, knee_ms):
+    """Offered rate at which a system saturates, as ``(rate, reached)``.
+
+    The saturation point is the last offered rate before p50 rises above
+    ``knee_ms`` and stays above it at the next measured rate as well. Requiring
+    two in a row keeps a transient stall -- p50 spikes at one rate and recovers
+    at the next -- from being read as saturation. A crossing at the last
+    measured rate counts, since there is no later point to recover at.
+
+    If p50 never crosses, the system has not saturated within the measured
+    range; the highest measured rate is returned with ``reached=False`` so it
+    can be drawn as a lower bound.
+    """
+    for i, r in enumerate(rows):
+        if r.p50 <= knee_ms:
+            continue
+        nxt = rows[i + 1] if i + 1 < len(rows) else None
+        if nxt is None or nxt.p50 > knee_ms:
+            return (rows[i - 1].tput if i > 0 else 0), True
+    return rows[-1].tput, False
+
+
+def draw_saturation_bars(ax, data, warehouses, order, knee_ms):
+    """One group per warehouse count, one bar per system, height = saturation point."""
+    systems = [s for s in order if any(s in data[wh] for wh in warehouses)]
     if not systems:
         ax.text(0.5, 0.5, "no data yet", transform=ax.transAxes,
                 ha="center", va="center", color="0.5", fontsize=10)
         sns.despine(ax=ax)
-        return []
+        return {}
 
-    values = [sustained_throughput(panel[s], slo_ms) or 0 for s in systems]
-    # bar() takes a single alpha, so fade the reference through its RGBA color.
-    colors = [to_rgba(SYS[s]["color"], REF_ALPHA if s == REFERENCE else 1.0)
-              for s in systems]
-    bars = ax.bar(list(range(len(systems))), values, color=colors,
-                  width=0.62, edgecolor="white", linewidth=1)
-    for bar, value in zip(bars, values):
-        if value:
-            ax.annotate(f"{value:,}", (bar.get_x() + bar.get_width() / 2, value),
-                        textcoords="offset points", xytext=(0, 3),
-                        ha="center", fontsize=7.5, color="0.2")
-    ax.set_xticks(list(range(len(systems))))
-    ax.set_xticklabels([SYS[s]["short"] for s in systems], fontsize=7.5,
-                       rotation=20, ha="right")
-    ax.set_xlabel("")
+    width = 0.8 / len(systems)
+    points = {}
+    for group, wh in enumerate(warehouses):
+        for idx, sysname in enumerate(systems):
+            rows = data[wh].get(sysname)
+            if not rows:
+                continue
+            rate, reached = saturation_point(rows, knee_ms)
+            points[(wh, sysname)] = (rate, reached)
+            color = SYS[sysname]["color"]
+            alpha = REF_ALPHA if sysname == REFERENCE else 1.0
+            x = group + (idx - (len(systems) - 1) / 2) * width
+            if reached:
+                ax.bar(x, rate, width=width * 0.9, color=to_rgba(color, alpha),
+                       edgecolor="white", linewidth=1)
+            else:
+                # Not saturated yet: hatched outline, labelled as a lower bound.
+                ax.bar(x, rate, width=width * 0.9, facecolor=to_rgba(color, 0.15),
+                       edgecolor=color, hatch="///", linewidth=1)
+            if rate:
+                ax.annotate(f"{rate:,}" if reached else f"≥{rate:,}", (x, rate),
+                            textcoords="offset points", xytext=(0, 3),
+                            ha="center", fontsize=7, color="0.2")
+
+    ax.set_xticks(list(range(len(warehouses))))
+    ax.set_xticklabels([f"{wh} warehouses" for wh in warehouses], fontsize=9)
+    ax.set_xlim(-0.5, len(warehouses) - 0.5)
+    ax.set_ylabel(f"Saturation point\n(offered txn/s, p50 > {knee_ms:g} ms)")
+    if not all(reached for _rate, reached in points.values()):
+        ax.legend(handles=[Patch(facecolor="white", edgecolor="0.4", hatch="///",
+                                 label="not saturated yet (lower bound)")],
+                  loc="upper left", frameon=False, fontsize=7.5)
     sns.despine(ax=ax)
-    return list(zip(systems, values))
+    return points
 
 
 # -- The overview figure -----------------------------------------------
 
 
 def make_overview_figure(data, slo_ms, dpi, out_path, csv_path,
-                         with_reference=True, requested_tput=None):
+                         with_reference=True, requested_tput=None, knee_ms=1000.0):
     warehouses = sorted(data)
     order = plotted_systems(with_reference)
     n = len(warehouses)
 
-    fig, axes = plt.subplots(3, n, figsize=(4.6 * n, 9.3), squeeze=False,
-                             sharey="row",
-                             gridspec_kw={"height_ratios": [1.15, 1.0, 1.0]})
+    fig = plt.figure(figsize=(4.6 * n, 9.3))
+    grid = fig.add_gridspec(3, n, height_ratios=[1.15, 1.0, 1.0])
+    curve_axes, box_axes = [], []
+    for col in range(n):
+        curve_axes.append(fig.add_subplot(grid[0, col], sharey=curve_axes[0] if col else None))
+        box_axes.append(fig.add_subplot(grid[1, col], sharey=box_axes[0] if col else None))
+        if col:
+            curve_axes[col].tick_params(labelleft=False)
+            box_axes[col].tick_params(labelleft=False)
+    bar_ax = fig.add_subplot(grid[2, :])
 
     letters = "abcdefghijklmnopqrstuvwxyz"
-    table_rows = []
+    boxes_by_wh = {}
     for col, wh in enumerate(warehouses):
         panel = data[wh]
-        draw_saturation(axes[0][col], panel, order)
-        axes[0][col].set_title(f"({letters[col]}) {wh} warehouses", pad=8)
+        draw_saturation(curve_axes[col], panel, order)
+        curve_axes[col].set_title(f"({letters[col]}) {wh} warehouses", pad=8)
+        boxes_by_wh[wh] = draw_boxes(box_axes[col], panel, order, slo_ms, requested_tput)
 
-        box_tput, box_rows = draw_boxes(axes[1][col], panel, order, slo_ms,
-                                        requested_tput)
-        bar_rows = draw_bars(axes[2][col], panel, order, slo_ms)
+    saturation = draw_saturation_bars(bar_ax, data, warehouses, order, knee_ms)
+    bar_ax.set_title(f"({letters[n]}) saturation point", pad=8)
 
-        sustained = dict(bar_rows)
+    table_rows = []
+    for wh in warehouses:
+        panel = data[wh]
+        box_tput, box_rows = boxes_by_wh[wh]
         boxes = dict(box_rows)
         for sysname in order:
             if sysname not in panel:
                 continue
             stats = boxes.get(sysname)
+            rate, reached = saturation[(wh, sysname)]
             table_rows.append({
                 "warehouses": wh,
                 "system": sysname,
-                "sustained_tput_txn_s": sustained.get(sysname) or "n/a",
+                "saturation_point_txn_s": rate,
+                "saturated": reached,
+                "knee_ms": knee_ms,
+                "sustained_tput_txn_s": sustained_throughput(panel[sysname], slo_ms) or "n/a",
                 "slo_ms": slo_ms,
                 "box_tput_txn_s": box_tput if stats else "n/a",
                 "p10_ms": round(stats["whislo"], 2) if stats else "n/a",
@@ -365,9 +423,8 @@ def make_overview_figure(data, slo_ms, dpi, out_path, csv_path,
                 "min_p50_ms": round(min(r.p50 for r in panel[sysname]), 2),
             })
 
-    axes[0][0].set_ylabel("Latency (ms)")
-    axes[1][0].set_ylabel("Latency distribution (ms)")
-    axes[2][0].set_ylabel(f"Sustained throughput\n(txn/s, p50 <= {slo_ms:g} ms)")
+    curve_axes[0].set_ylabel("Latency (ms)")
+    box_axes[0].set_ylabel("Latency distribution (ms)")
 
     present = {s for wh in warehouses for s in data[wh]}
     leg1 = fig.legend(handles=system_legend_handles(present, order), ncol=3,
@@ -390,13 +447,13 @@ def make_overview_figure(data, slo_ms, dpi, out_path, csv_path,
             writer.writeheader()
             writer.writerows(table_rows)
         print("wrote", csv_path)
-        header = (f"{'wh':>4} {'system':<14} {'sustained':>10} "
+        header = (f"{'wh':>4} {'system':<14} {'saturation':>11} "
                   f"{'p50@box':>9} {'p99@box':>9}")
         print("\n" + header)
         print("-" * len(header))
         for row in table_rows:
-            print(f"{row['warehouses']:>4} {row['system']:<14} "
-                  f"{row['sustained_tput_txn_s']!s:>10} "
+            sat = f"{row['saturation_point_txn_s']}" + ("" if row["saturated"] else "+")
+            print(f"{row['warehouses']:>4} {row['system']:<14} {sat:>11} "
                   f"{row['p50_ms']!s:>9} {row['p99_ms']!s:>9}")
 
 
@@ -404,7 +461,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--hi-res", action="store_true")
     ap.add_argument("--slo-ms", type=float, default=100.0,
-                    help="p50 SLO used for the sustained-throughput bars (default: 100)")
+                    help="p50 SLO that picks the box-plot operating point (default: 100)")
+    ap.add_argument("--knee-ms", type=float, default=1000.0,
+                    help="p50 above which a system counts as saturated (default: 1000)")
     ap.add_argument("--box-tput", type=int, default=None,
                     help="offered rate for the box plots; snapped to the nearest "
                          "rate all configurations share (default: the full system's "
@@ -428,7 +487,8 @@ def main():
                          os.path.join(OUT, "optimization_ladder.png"),
                          os.path.join(OUT, "optimization_ladder.csv"),
                          with_reference=not args.no_reference,
-                         requested_tput=args.box_tput)
+                         requested_tput=args.box_tput,
+                         knee_ms=args.knee_ms)
 
 
 if __name__ == "__main__":

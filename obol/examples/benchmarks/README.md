@@ -52,9 +52,12 @@ Two systems sit outside the ladder:
 
 The three optimizations, in the order the ladder adds them:
 
-- **Context-in-state** — save the live continuation context in the operator's
-  function-context store and put only a small integer id in `reply_to`. Off,
-  the whole context dict travels the network on every hop, forward and back.
+- **Context-in-state** — park the live continuation context in the worker's
+  transaction-local context store (`ctx.put_txn_context` /
+  `ctx.pop_txn_context`) and put only a small integer handle in `reply_to`.
+  The store is outside the read/write sets and is cleared every epoch, so
+  transactions that touch the same key never conflict over it. Off, the whole
+  context dict travels the network on every hop, forward and back.
 - **Distributed tail-call optimization** — when a step ends in
   `return other.method(...)`, forward the caller's reply-to address instead of
   routing the reply back through the intermediate entity. Off, the compiler
@@ -136,11 +139,17 @@ warehouse count:
    rate, reconstructed from the percentiles in the result files (box spans
    p25–p75, interpolated from the recorded deciles; the median line and the
    p10/p99 whiskers are measured values);
-3. **sustained throughput** — the highest offered rate each configuration
-   holds while keeping p50 within the SLO.
+3. **saturation point** — one grouped bar chart across the full width, a
+   group for 10 warehouses and a group for 100 warehouses, one bar per
+   configuration. The saturation point is the last offered rate before p50
+   rises above the knee (default 1 s) and stays above it at the next rate, so
+   a single transient stall is not mistaken for saturation. A configuration
+   that never crosses the knee is drawn hatched and labelled `≥` as a lower
+   bound.
 
-Options: `--slo-ms 200` changes the p50 SLO used by rows 2 and 3 (default
-100 ms); `--box-tput 2000` picks the offered rate for the boxes, snapped to
+Options: `--knee-ms 500` changes the p50 threshold that defines saturation
+(default 1000 ms); `--slo-ms 200` changes the p50 SLO that picks the box-plot
+operating point (default 100 ms); `--box-tput 2000` picks the offered rate for the boxes, snapped to
 the nearest rate every configuration measured (default: the rate the full
 system sustains under the SLO); `--no-reference` drops the hand-written Styx
 reference and plots the four Obol rungs alone. All scripts accept `--hi-res`

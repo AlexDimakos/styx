@@ -88,3 +88,9 @@ class BaseOperatorState(ABC):
     @abstractmethod
     def exists(self, key: K, operator_name: str, partition: int) -> bool:
         raise NotImplementedError
+
+    def put_txn_context(self, value: V, t_id: int) -> int:
+        raise NotImplementedError
+
+    def pop_txn_context(self, handle: int, t_id: int) -> V:
+        raise NotImplementedError

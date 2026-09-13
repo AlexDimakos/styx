@@ -294,6 +294,14 @@ class StatefulFunction(Function):
                 self.__partition,
             )
 
+    def put_txn_context(self, value: V) -> int:
+        """Parks a value for the rest of the current transaction and returns a handle."""
+        return self.__state.put_txn_context(value, self.__t_id)
+
+    def pop_txn_context(self, handle: int) -> V:
+        """Removes and returns a value parked with put_txn_context."""
+        return self.__state.pop_txn_context(handle, self.__t_id)
+
     def batch_insert(self, kv_pairs: dict) -> None:
         if kv_pairs:
             self.__state.batch_insert(kv_pairs, self.__operator_name, self.__partition)

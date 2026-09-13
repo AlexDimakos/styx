@@ -1,6 +1,7 @@
 from abc import abstractmethod
 import asyncio
 from collections import defaultdict
+import itertools
 from typing import TYPE_CHECKING
 
 from styx.common.base_state import BaseOperatorState
@@ -15,6 +16,7 @@ from worker.operator_state.aria._aria_state import (
     remove_aborted_from_rw_sets as _cy_remove_aborted,
     state_put as _cy_state_put,
 )
+from worker.operator_state.aria.fast_copy import fast_deepcopy
 
 if TYPE_CHECKING:
     from styx.common.types import K, OperatorPartition, V
@@ -52,6 +54,10 @@ class BaseAriaState(BaseOperatorState):
         self.global_read_sets = {operator_partition: {} for operator_partition in self.operator_partitions}
         self.fallback_commit_buffer = defaultdict(lambda: defaultdict(dict))
         self.fallback_read_sets: dict[int, dict[OperatorPartition, set[K]]] = {}
+        # Transaction-local scratch space, see put_txn_context.
+        # handle: (t_id, value)
+        self.txn_contexts: dict[int, tuple[int, V]] = {}
+        self._txn_context_handles = itertools.count()
 
     def put(
         self,
@@ -79,6 +85,25 @@ class BaseAriaState(BaseOperatorState):
                 self.fallback_commit_buffer[t_id][operator_partition] = {key: value}
         else:
             self.fallback_commit_buffer[t_id] = {operator_partition: {key: value}}
+
+    def put_txn_context(self, value: V, t_id: int) -> int:
+        
+        handle = next(self._txn_context_handles)
+        self.txn_contexts[handle] = (t_id, fast_deepcopy(value))
+        return handle
+
+    def pop_txn_context(self, handle: int, t_id: int) -> V:
+
+        entry = self.txn_contexts.pop(handle, None)
+        if entry is None:
+            msg = f"No transaction context with handle {handle} (t_id {t_id})"
+            raise KeyError(msg)
+        owner, value = entry
+        if owner != t_id:
+            self.txn_contexts[handle] = entry
+            msg = f"Transaction context {handle} belongs to t_id {owner}, not {t_id}"
+            raise RuntimeError(msg)
+        return value
 
     def set_global_read_write_sets(
         self,
@@ -229,6 +254,7 @@ class BaseAriaState(BaseOperatorState):
             self.global_read_sets[operator_partition].clear()
         self.fallback_commit_buffer.clear()
         self.fallback_read_sets.clear()
+        self.txn_contexts.clear()
 
     def get_dep_transactions(
         self,

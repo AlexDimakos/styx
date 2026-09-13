@@ -23,8 +23,8 @@ def liveness_enabled() -> bool:
 
 
 def context_in_state_enabled() -> bool:
-    """Store continuation context in the operator's persistent function-context
-    store and ship only a small integer id inside the reply_to record.
+    """Park continuation context in the worker's transaction-local context
+    store and ship only a small integer handle inside the reply_to record.
     Disabled, the full context dict travels through the network inside the
     reply_to stack on every hop (forward and backward)."""
     return os.getenv("OBOL_CONTEXT_OVER_NETWORK", "0") != "1"

@@ -93,9 +93,9 @@ class StyxTransformer(cst.CSTTransformer):
         ]
 
         # Ablation variant: ship the full context dict inside the reply_to
-        # record on every hop instead of parking it in the operator's
-        # persistent function-context store. Generated call sites are
-        # identical; only the two helpers change.
+        # record on every hop instead of parking it in the worker's
+        # transaction-local context store. Generated call sites are identical;
+        # only the two helpers change.
         context_over_network_helpers = """
 def push_continuation(
     ctx: StatefulFunction, reply_to: list, op_name: str, fun: str, step_id: str, context: dict
@@ -136,12 +136,7 @@ def send_reply(ctx: StatefulFunction, reply_to: list, result):
 def push_continuation(
     ctx: StatefulFunction, reply_to: list, op_name: str, fun: str, step_id: str, context: dict
 ) -> list:
-    context_dict = ctx.get_func_context() or {}
-    next_id = context_dict.get("next_id", 0)
-    context_dict["next_id"] = next_id + 1
-
-    context_dict[next_id] = context
-    ctx.put_func_context(context_dict)
+    handle = ctx.put_txn_context(context)
     if reply_to is None:
         reply_to = []
     reply_to.append(
@@ -149,7 +144,7 @@ def push_continuation(
             "op_name": op_name,
             "fun": fun,
             "id": step_id,
-            "context": next_id,
+            "context": handle,
         }
     )
     return reply_to
@@ -158,11 +153,7 @@ def push_continuation(
 def resolve_context(ctx: StatefulFunction, context_data) -> dict:
     if isinstance(context_data, dict):
         return context_data
-
-    ctx_dict = ctx.get_func_context() or {}
-    params = ctx_dict.pop(context_data)
-    ctx.put_func_context(ctx_dict)
-    return params
+    return ctx.pop_txn_context(context_data)
 
 
 def init_gather_barrier(ctx: StatefulFunction, total: int, saved: dict, parent_reply_to) -> str:
