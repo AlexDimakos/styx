@@ -124,7 +124,6 @@ async def insert(ctx: StatefulFunction, w_id: int, W_NAME: str, W_STREET_1: str,
     __state__['W_ZIP'] = W_ZIP
     __state__['W_TAX'] = W_TAX
     __state__['W_YTD'] = W_YTD
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -175,7 +174,6 @@ async def insert(ctx: StatefulFunction, D_ID: int, D_W_ID: int, D_NAME: str, D_S
     __state__['D_TAX'] = D_TAX
     __state__['D_YTD'] = D_YTD
     __state__['D_NEXT_O_ID'] = D_NEXT_O_ID
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -251,7 +249,6 @@ async def insert(ctx: StatefulFunction, I_ID: int, I_IM_ID: int, I_NAME: str, I_
     __state__['I_NAME'] = I_NAME
     __state__['I_PRICE'] = I_PRICE
     __state__['I_DATA'] = I_DATA
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -306,7 +303,6 @@ async def insert(ctx: StatefulFunction, C_ID: int, C_D_ID: int, C_W_ID: int, C_F
     __state__['C_PAYMENT_CNT'] = C_PAYMENT_CNT
     __state__['C_DELIVERY_CNT'] = C_DELIVERY_CNT
     __state__['C_DATA'] = C_DATA
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -369,7 +365,6 @@ async def insert(ctx: StatefulFunction, C_W_ID: int, C_D_ID: int, C_LAST: str, c
     __state__['C_D_ID'] = C_D_ID
     __state__['C_LAST'] = C_LAST
     __state__['customers'] = customers
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -415,7 +410,6 @@ async def insert(ctx: StatefulFunction, S_I_ID: int, S_W_ID: int, S_QUANTITY: in
     __state__['S_ORDER_CNT'] = S_ORDER_CNT
     __state__['S_REMOTE_CNT'] = S_REMOTE_CNT
     __state__['S_DATA'] = S_DATA
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -500,7 +494,6 @@ async def insert(ctx: StatefulFunction, H_C_ID: int, H_C_D_ID: int, H_C_W_ID: in
     __state__['H_DATE'] = H_DATE
     __state__['H_AMOUNT'] = H_AMOUNT
     __state__['H_DATA'] = H_DATA
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -531,7 +524,6 @@ async def insert(ctx: StatefulFunction, O_W_ID: int, O_D_ID: int, O_ID: int, O_C
     __state__['O_CARRIER_ID'] = O_CARRIER_ID
     __state__['O_OL_CNT'] = O_OL_CNT
     __state__['O_ALL_LOCAL'] = O_ALL_LOCAL
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -556,7 +548,6 @@ async def insert(ctx: StatefulFunction, NO_W_ID: int, NO_D_ID: int, NO_O_ID: int
     __state__['NO_W_ID'] = NO_W_ID
     __state__['NO_D_ID'] = NO_D_ID
     __state__['NO_O_ID'] = NO_O_ID
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -595,7 +586,6 @@ reply_to: list = None):
     __state__['OL_SUPPLY_W_ID'] = OL_SUPPLY_W_ID
     __state__['OL_DIST_INFO'] = OL_DIST_INFO
     __state__['OL_AMOUNT'] = OL_AMOUNT
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -620,7 +610,6 @@ newordertxn_operator = Operator('newordertxn', n_partitions=4)
 async def insert(ctx: StatefulFunction, txn_id: str, reply_to: list = None):
     __state__ = {}
     __state__['txn_id'] = txn_id
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -702,7 +691,6 @@ reply_to: list = None):
     __state__['C_ID'] = None
     __state__['H_AMOUNT'] = h_amount
     __state__['H_DATE'] = h_date
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 

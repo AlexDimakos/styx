@@ -302,9 +302,8 @@ def update_gather_barrier(ctx: StatefulFunction, barrier_id: str, tag, result):
         new_params = [ctx_param] + [p for p in node.params.params if p.name.value != "self"] + [reply_to_param]
 
         init_state = cst.parse_statement("__state__ = {}")
-        put_func_state = cst.parse_statement("ctx.put_func_context({})")
         return_stmt = cst.parse_statement("return ctx.key")
-        new_block = node.body.with_changes(body=[init_state, *list(node.body.body), put_func_state, return_stmt])
+        new_block = node.body.with_changes(body=[init_state, *list(node.body.body), return_stmt])
 
         return node.with_changes(
             name=cst.Name("insert"),

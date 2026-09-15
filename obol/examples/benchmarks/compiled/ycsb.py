@@ -90,7 +90,6 @@ async def insert(ctx: StatefulFunction, key: str, reply_to: list = None):
     __state__ = {}
     __state__['key'] = key
     __state__['value'] = 1_000_000
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 

@@ -99,7 +99,6 @@ async def insert(ctx: StatefulFunction, code: str, discount: int, reply_to: list
     __state__ = {}
     __state__['code'] = code
     __state__['discount'] = discount
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -118,7 +117,6 @@ async def insert(ctx: StatefulFunction, item_name: str, price: int, reply_to: li
     __state__['item_name'] = item_name
     __state__['stock'] = 0
     __state__['price'] = price
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -154,7 +152,6 @@ async def insert(ctx: StatefulFunction, username: str, reply_to: list = None):
     __state__['username'] = username
     __state__['balance'] = 0
     __state__['myitems'] = []
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 

@@ -122,7 +122,6 @@ async def insert(ctx: StatefulFunction, product_id: str, name: str, base_price: 
     __state__['rating_count'] = 0
     __state__['tags'] = []
     __state__['is_active'] = True
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -263,7 +262,6 @@ async def insert(ctx: StatefulFunction, seller_id: str, name: str, reply_to: lis
     __state__['total_revenue'] = 0
     __state__['is_suspended'] = False
     __state__['penalty_points'] = 0
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -373,7 +371,6 @@ async def insert(ctx: StatefulFunction, customer_id: str, username: str, reply_t
     __state__['wishlist'] = []
     __state__['loyalty_points'] = 0
     __state__['reviewed_products'] = []
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -527,7 +524,6 @@ async def insert(ctx: StatefulFunction, code: str, discount_percent: int, max_us
     __state__['uses'] = 0
     __state__['min_order_value'] = min_order_value
     __state__['is_active'] = True
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -598,7 +594,6 @@ async def insert(ctx: StatefulFunction, warehouse_id: str, capacity: int, reply_
     __state__['product_slots'] = {}
     __state__['pending_shipments'] = []
     __state__['total_shipped'] = 0
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
@@ -717,7 +712,6 @@ async def insert(ctx: StatefulFunction, marketplace_id: str, reply_to: list = No
     __state__['total_transactions'] = 0
     __state__['total_revenue'] = 0
     __state__['platform_fee_percent'] = 5
-    ctx.put_func_context({})
     ctx.put(__state__)
     return send_reply(ctx, reply_to, ctx.key)
 
